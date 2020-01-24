@@ -1,8 +1,6 @@
 package com.dziedzic.filecompresser;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import com.dziedzic.filecompresser.zip.ZipCompresser;
 
 /*
  * @author Łukasz Dziedzic
@@ -11,7 +9,7 @@ import java.nio.file.Paths;
  */
 public class Main {
     public static void main(String [] args) {
-        Compresser compresser = new Compresser();
-        compresser.readFile("/home/lukasz/projects/file-compression-python/file-compression-python.zip");
+        ZipCompresser zipCompresser = new ZipCompresser();
+        zipCompresser.getFilesFromZip("/home/lukasz/projects/file-compression-python/file-compression-python.zip");
     }
 }
