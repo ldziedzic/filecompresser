@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
@@ -36,6 +37,13 @@ public class ZipCompresser {
         CompressionMethod compresionMethod = getCompressionMethod(Arrays.copyOfRange(content, 8, 10));
         LocalDateTime modificationDateTime = getModificationDateTime(Arrays.copyOfRange(content, 10, 14));
         int crc32Checksum = getCrc32Checksum(Arrays.copyOfRange(content, 14, 18));
+        int compressedSize = getFileSize(Arrays.copyOfRange(content, 18, 22));
+        int uncompressedSize = getFileSize(Arrays.copyOfRange(content, 22, 26));
+        short fileNameLength = getFilenameLength(Arrays.copyOfRange(content, 26, 28));
+        short extraFieldLength = getExtraFieldLength(Arrays.copyOfRange(content, 28, 30));
+        String filename = getFilename(Arrays.copyOfRange(content, 30, 30 + fileNameLength));
+        // String extraFields = getFilename(Arrays.copyOfRange(content, 30 + fileNameLength,
+        // 30 + fileNameLength + extraFieldLength));
 
         return;
     }
@@ -97,6 +105,43 @@ public class ZipCompresser {
        return buffer.getInt();
     }
 
+
+   private int getFileSize(byte[] fileSizeBytes) {
+        ByteBuffer buffer = ByteBuffer.allocate(fileSizeBytes.length);
+        buffer.order(ByteOrder.LITTLE_ENDIAN);
+        buffer.put(fileSizeBytes);
+        buffer.rewind();
+
+       return buffer.getInt();
+    }
+
+   private short getFilenameLength(byte[] filenameLengthBytes) {
+        ByteBuffer buffer = ByteBuffer.allocate(filenameLengthBytes.length);
+        buffer.order(ByteOrder.LITTLE_ENDIAN);
+        buffer.put(filenameLengthBytes);
+        buffer.rewind();
+
+       return buffer.getShort();
+    }
+
+   private short getExtraFieldLength(byte[] fileSizeBytes) {
+        ByteBuffer buffer = ByteBuffer.allocate(fileSizeBytes.length);
+        buffer.order(ByteOrder.LITTLE_ENDIAN);
+        buffer.put(fileSizeBytes);
+        buffer.rewind();
+
+       return buffer.getShort();
+    }
+
+
+   private String getFilename(byte[] fileSizeBytes) {
+        ByteBuffer buffer = ByteBuffer.allocate(fileSizeBytes.length);
+        buffer.order(ByteOrder.LITTLE_ENDIAN);
+        buffer.put(fileSizeBytes);
+        buffer.rewind();
+
+       return StandardCharsets.UTF_8.decode(buffer).toString();
+    }
 
 
     private byte[] readFile(String path)  {
