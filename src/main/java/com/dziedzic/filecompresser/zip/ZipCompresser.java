@@ -35,6 +35,7 @@ public class ZipCompresser {
         Flag flag = getFlag(Arrays.copyOfRange(content, 6, 8));
         CompressionMethod compresionMethod = getCompressionMethod(Arrays.copyOfRange(content, 8, 10));
         LocalDateTime modificationDateTime = getModificationDateTime(Arrays.copyOfRange(content, 10, 14));
+        int crc32Checksum = getCrc32Checksum(Arrays.copyOfRange(content, 14, 18));
 
         return;
     }
@@ -85,6 +86,15 @@ public class ZipCompresser {
         int year = ((dateBits & 0xfe00) >> 9) + 1980;
 
         return LocalDateTime.of(year, month, day, hours, minutes, seconds);
+    }
+
+   private int getCrc32Checksum(byte[] checksumBytes) {
+        ByteBuffer buffer = ByteBuffer.allocate(checksumBytes.length);
+        buffer.order(ByteOrder.LITTLE_ENDIAN);
+        buffer.put(checksumBytes);
+        buffer.rewind();
+
+       return buffer.getInt();
     }
 
 
