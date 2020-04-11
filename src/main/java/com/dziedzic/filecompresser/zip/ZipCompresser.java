@@ -6,6 +6,8 @@ package com.dziedzic.filecompresser.zip;
  * @date 18.01.2020
  */
 
+import com.dziedzic.filecompresser.zip.Entity.FileData;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -15,10 +17,18 @@ public class ZipCompresser {
 
     public void getFilesFromZip(String path) {
         byte[] content = readFile(path);
+        int offset = 0;
         ZipHeaderUtils zipHeaderUtils = new ZipHeaderUtils();
-        zipHeaderUtils.getLocalFileHeader(content);
+        while (isNextFile(content, offset)) {
+            FileData fileData = zipHeaderUtils.getLocalFileHeader(content, offset);
+            offset += fileData.getFileDataSize();
+        }
+
+    }
 
 
+    private boolean isNextFile(byte[] content, int offset) {
+        return content.length > offset;
     }
 
 
@@ -27,7 +37,7 @@ public class ZipCompresser {
             return Files.readAllBytes(Paths.get(path));
         } catch (IOException e) {
             e.printStackTrace();
-            return null;
+            return new byte[0];
         }
     }
 }

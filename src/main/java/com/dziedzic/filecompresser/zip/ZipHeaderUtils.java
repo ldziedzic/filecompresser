@@ -5,33 +5,42 @@ package com.dziedzic.filecompresser.zip;/*
  */
 
 import com.dziedzic.filecompresser.zip.Entity.CompressionMethod;
+import com.dziedzic.filecompresser.zip.Entity.FileData;
 import com.dziedzic.filecompresser.zip.Entity.Flag;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 public class ZipHeaderUtils {
     private static final byte[] ZIP_SIGNATURE = {0x50, 0x4b, 0x03, 0x04};
 
-    public void getLocalFileHeader(byte[] content) {
-        boolean isZip = checkLocalFileHeaderSignature(Arrays.copyOfRange(content, 0, 4));
-        Flag flag = getFlag(Arrays.copyOfRange(content, 6, 8));
-        CompressionMethod compresionMethod = getCompressionMethod(Arrays.copyOfRange(content, 8, 10));
-        LocalDateTime modificationDateTime = getModificationDateTime(Arrays.copyOfRange(content, 10, 14));
-        int crc32Checksum = getCrc32Checksum(Arrays.copyOfRange(content, 14, 18));
-        int compressedSize = getFileSize(Arrays.copyOfRange(content, 18, 22));
-        int uncompressedSize = getFileSize(Arrays.copyOfRange(content, 22, 26));
-        short fileNameLength = getFilenameLength(Arrays.copyOfRange(content, 26, 28));
-        short extraFieldLength = getExtraFieldLength(Arrays.copyOfRange(content, 28, 30));
-        String filename = getFilename(Arrays.copyOfRange(content, 30, 30 + fileNameLength));
-        // String extraFields = getFilename(Arrays.copyOfRange(content, 30 + fileNameLength,
-        // 30 + fileNameLength + extraFieldLength));
+    public FileData getLocalFileHeader(byte[] content, int offset) {
+        boolean isZip = checkLocalFileHeaderSignature(Arrays.copyOfRange(content, offset, offset + 4));
+        Flag flag = getFlag(Arrays.copyOfRange(content, offset + 6, offset + 8));
+        List<Flag> flags = new ArrayList<>();
+        CompressionMethod compresionMethod = getCompressionMethod(Arrays.copyOfRange(content, offset + 8,
+                offset + 10));
+        LocalDateTime modificationDateTime = getModificationDateTime(Arrays.copyOfRange(content, offset + 10, offset + 14));
+        Long crc32Checksum = getCrc32Checksum(Arrays.copyOfRange(content, offset + 14, offset + 18));
+        Long compressedSize = getFileSize(Arrays.copyOfRange(content, offset + 18, offset + 22));
+        Long uncompressedSize = getFileSize(Arrays.copyOfRange(content, offset + 22, offset + 26));
+        short fileNameLength = getFilenameLength(Arrays.copyOfRange(content, offset + 26, offset + 28));
+        short extraFieldLength = getExtraFieldLength(Arrays.copyOfRange(content, offset + 28, offset + 30));
+        String filename = getFilename(Arrays.copyOfRange(content, offset + 30, offset + 30 + fileNameLength));
+        String extraFields = "";
+        // String extraFields = getFilename(Arrays.copyOfRange(content, offset + 30 + fileNameLength,
+        // offset + 30 + fileNameLength + extraFieldLength));
 
-        return;
+        int fileDataSize = (int) (30 + fileNameLength + extraFieldLength + compressedSize);
+
+        return new FileData(offset, fileDataSize, isZip, flags, compresionMethod,  modificationDateTime, crc32Checksum,
+                compressedSize, uncompressedSize, fileNameLength, extraFieldLength, filename, extraFields);
     }
 
     private boolean checkLocalFileHeaderSignature(byte[] localFileHeaderSignature) {
@@ -78,22 +87,22 @@ public class ZipHeaderUtils {
         return LocalDateTime.of(year, month, day, hours, minutes, seconds);
     }
 
-    private int getCrc32Checksum(byte[] checksumBytes) {
+    private Long getCrc32Checksum(byte[] checksumBytes) {
         ByteBuffer buffer = ByteBuffer.allocate(checksumBytes.length);
         buffer.order(ByteOrder.LITTLE_ENDIAN);
         buffer.put(checksumBytes);
         buffer.rewind();
 
-       return buffer.getInt();
+       return buffer.getInt() & 0xFFFFFFFFL;
     }
 
-    private int getFileSize(byte[] fileSizeBytes) {
+    private Long getFileSize(byte[] fileSizeBytes) {
         ByteBuffer buffer = ByteBuffer.allocate(fileSizeBytes.length);
         buffer.order(ByteOrder.LITTLE_ENDIAN);
         buffer.put(fileSizeBytes);
         buffer.rewind();
 
-       return buffer.getInt();
+       return buffer.getInt() & 0xFFFFFFFFL;
     }
 
     private short getFilenameLength(byte[] filenameLengthBytes) {
