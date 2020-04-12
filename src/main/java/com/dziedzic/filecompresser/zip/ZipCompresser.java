@@ -6,11 +6,13 @@ package com.dziedzic.filecompresser.zip;
  * @date 18.01.2020
  */
 
+import com.dziedzic.filecompresser.algorithms.Deflater;
 import com.dziedzic.filecompresser.zip.Entity.FileData;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 
 
 public class ZipCompresser {
@@ -21,9 +23,26 @@ public class ZipCompresser {
         ZipHeaderUtils zipHeaderUtils = new ZipHeaderUtils();
         while (isNextFile(content, offset)) {
             FileData fileData = zipHeaderUtils.getLocalFileHeader(content, offset);
+
+            decompressFile(fileData,
+                    Arrays.copyOfRange(content,
+                            offset + fileData.getFileDataSize(),
+                            (int) (offset + fileData.getFileDataSize() + fileData.getCompressedSize())));
+
             offset += fileData.getFileDataSize();
         }
 
+    }
+
+    private void decompressFile(FileData fileData, byte[] content) {
+        switch (fileData.getCompresionMethod()) {
+            case DEFLATED:
+                Deflater deflater = new Deflater();
+                deflater.deflate(content);
+                break;
+            default:
+                break;
+        }
     }
 
 

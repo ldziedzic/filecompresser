@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Optional;
 
 public class ZipHeaderUtils {
+    public static final int FILE_HEADER_SIZE = 30;
     private static final byte[] ZIP_SIGNATURE = {0x50, 0x4b, 0x03, 0x04};
 
     public FileData getLocalFileHeader(byte[] content, int offset) {
@@ -37,7 +38,7 @@ public class ZipHeaderUtils {
         // String extraFields = getFilename(Arrays.copyOfRange(content, offset + 30 + fileNameLength,
         // offset + 30 + fileNameLength + extraFieldLength));
 
-        int fileDataSize = (int) (30 + fileNameLength + extraFieldLength + compressedSize);
+        int fileDataSize = (int) (FILE_HEADER_SIZE + fileNameLength + extraFieldLength + compressedSize);
 
         return new FileData(offset, fileDataSize, isZip, flags, compresionMethod,  modificationDateTime, crc32Checksum,
                 compressedSize, uncompressedSize, fileNameLength, extraFieldLength, filename, extraFields);
