@@ -7,14 +7,12 @@ package com.dziedzic.filecompresser.algorithms.deflate.entity;/*
 public class HuffmanLengthCode {
     private int lengthCode;
     private int bitsNumber;
-    private byte[] firstPrefixCode;
-    private byte[] lastPrefixCode;
+    private byte[] prefixCode;
 
-    public HuffmanLengthCode(int lengthCode, int bitsNumber, byte[] firstPrefixCode, byte[] lastPrefixCode) {
+    public HuffmanLengthCode(int lengthCode, int bitsNumber, int prefixCode) {
         this.lengthCode = lengthCode;
         this.bitsNumber = bitsNumber;
-        this.firstPrefixCode = firstPrefixCode;
-        this.lastPrefixCode = lastPrefixCode;
+        this.prefixCode = prefixCode;
     }
 
     public int getLengthCode() {
@@ -25,11 +23,7 @@ public class HuffmanLengthCode {
         return bitsNumber;
     }
 
-    public byte[] getFirstPrefixCode() {
-        return firstPrefixCode;
-    }
-
-    public byte[] getLastPrefixCode() {
-        return lastPrefixCode;
+    public byte[] getPrefixCode() {
+        return prefixCode;
     }
 }
