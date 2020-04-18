@@ -21,11 +21,13 @@ public class FileData {
     private short extraFieldLength;
     private String filename;
     private String extraFields;
+    private int fileHeaderSize;
 
 
     public FileData(int offset, int fileDataSize, boolean isZip, List<Flag> flags, CompressionMethod compresionMethod,
                     LocalDateTime modificationDateTime, Long crc32Checksum, Long compressedSize, Long uncompressedSize,
-                    short fileNameLength, short extraFieldLength, String filename, String extraFields) {
+                    short fileNameLength, short extraFieldLength, String filename, String extraFields,
+                    int fileHeaderSize) {
         this.offset = offset;
         this.fileDataSize = fileDataSize;
         this.isZip = isZip;
@@ -39,6 +41,7 @@ public class FileData {
         this.extraFieldLength = extraFieldLength;
         this.filename = filename;
         this.extraFields = extraFields;
+        this.fileHeaderSize = fileHeaderSize;
     }
 
     public int getOffset() {
@@ -91,5 +94,9 @@ public class FileData {
 
     public String getExtraFields() {
         return extraFields;
+    }
+
+    public int getFileHeaderSize() {
+        return fileHeaderSize;
     }
 }

@@ -6,7 +6,7 @@ package com.dziedzic.filecompresser.zip;
  * @date 18.01.2020
  */
 
-import com.dziedzic.filecompresser.algorithms.Deflater;
+import com.dziedzic.filecompresser.algorithms.deflate.Deflater;
 import com.dziedzic.filecompresser.zip.Entity.FileData;
 
 import java.io.IOException;
@@ -26,8 +26,8 @@ public class ZipCompresser {
 
             decompressFile(fileData,
                     Arrays.copyOfRange(content,
-                            offset + fileData.getFileDataSize(),
-                            (int) (offset + fileData.getFileDataSize() + fileData.getCompressedSize())));
+                            offset + fileData.getFileHeaderSize(),
+                            (int) (offset + fileData.getFileHeaderSize() + fileData.getCompressedSize())));
 
             offset += fileData.getFileDataSize();
         }

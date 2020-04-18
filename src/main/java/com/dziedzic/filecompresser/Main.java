@@ -10,6 +10,6 @@ import com.dziedzic.filecompresser.zip.ZipCompresser;
 public class Main {
     public static void main(String [] args) {
         ZipCompresser zipCompresser = new ZipCompresser();
-        zipCompresser.getFilesFromZip("/home/lukasz/projects/file-compression-python/file-compression-python.zip");
+        zipCompresser.getFilesFromZip("/home/lukasz/projects/file-compression-python/a9.zip");
     }
 }
