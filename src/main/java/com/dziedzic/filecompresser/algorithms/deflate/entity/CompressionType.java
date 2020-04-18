@@ -1,4 +1,4 @@
-package com.dziedzic.filecompresser.algorithms.deflate;/*
+package com.dziedzic.filecompresser.algorithms.deflate.entity;/*
  * @project filecompresser
  * @author Łukasz Dziedzic
  * @date 12.04.2020

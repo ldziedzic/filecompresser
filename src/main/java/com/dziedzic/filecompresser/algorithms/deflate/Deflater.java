@@ -4,6 +4,9 @@ package com.dziedzic.filecompresser.algorithms.deflate;/*
  * @date 11.04.2020
  */
 
+import com.dziedzic.filecompresser.algorithms.deflate.entity.BlockHeader;
+import com.dziedzic.filecompresser.algorithms.deflate.entity.CompressionType;
+
 public class Deflater {
 
     public void deflate(byte[] content) {
