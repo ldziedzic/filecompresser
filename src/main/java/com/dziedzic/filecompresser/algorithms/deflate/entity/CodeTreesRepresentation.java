@@ -10,6 +10,7 @@ public class CodeTreesRepresentation {
     private List<DistanceCode> distanceCodes;
     private List<LengthCode> lengthCodes;
     private List<HuffmanLengthCode> huffmanLengthCodes;
+    private int smallestHuffmanLength;
     private byte[] blockContent;
     private BlockHeader blockHeader;
 
@@ -23,6 +24,10 @@ public class CodeTreesRepresentation {
             generateDynamicCodeTreesRepresentation();
         else if (blockHeader.getCompressionType() == CompressionType.COMPRESSED_WITH_FIXED_HUFFMAN_CODES)
             generateStaticCodeTreesRepresentation();
+    }
+
+    public int getSmallestHuffmanLength() {
+        return smallestHuffmanLength;
     }
 
     private void generateDynamicCodeTreesRepresentation() {
@@ -109,6 +114,6 @@ public class CodeTreesRepresentation {
                     huffmanLengthCodes.add(new HuffmanLengthCode(i, 7, i));
         for (int i = 280; i < 288; i++)
                     huffmanLengthCodes.add(new HuffmanLengthCode(i, 8, 0b11000000 + i));
-
+        smallestHuffmanLength = 7;
     }
 }
