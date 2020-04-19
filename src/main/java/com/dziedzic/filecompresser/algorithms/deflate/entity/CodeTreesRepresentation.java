@@ -4,6 +4,7 @@ package com.dziedzic.filecompresser.algorithms.deflate.entity;/*
  * @date 18.04.2020
  */
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class CodeTreesRepresentation {
@@ -17,6 +18,11 @@ public class CodeTreesRepresentation {
     public CodeTreesRepresentation(byte[] blockContent, BlockHeader blockHeader) {
         this.blockContent = blockContent;
         this.blockHeader = blockHeader;
+        smallestHuffmanLength = 0;
+        distanceCodes = new ArrayList<>();
+        lengthCodes = new ArrayList<>();
+        huffmanLengthCodes = new ArrayList<>();
+
     }
 
     public void generateCodeTreesRepresentation() {
@@ -28,6 +34,18 @@ public class CodeTreesRepresentation {
 
     public int getSmallestHuffmanLength() {
         return smallestHuffmanLength;
+    }
+
+    public List<DistanceCode> getDistanceCodes() {
+        return distanceCodes;
+    }
+
+    public List<LengthCode> getLengthCodes() {
+        return lengthCodes;
+    }
+
+    public List<HuffmanLengthCode> getHuffmanLengthCodes() {
+        return huffmanLengthCodes;
     }
 
     private void generateDynamicCodeTreesRepresentation() {
@@ -108,12 +126,12 @@ public class CodeTreesRepresentation {
     private void generateStaticHuffmanLengthCodes() {
         for (int i = 0; i < 144; i++)
             huffmanLengthCodes.add(new HuffmanLengthCode(i, 8, 0b00110000 + i));
-        for (int i = 144; i < 256; i++)
-                    huffmanLengthCodes.add(new HuffmanLengthCode(i, 9, 0b110010000 + i));
-        for (int i = 256; i < 280; i++)
-                    huffmanLengthCodes.add(new HuffmanLengthCode(i, 7, i));
-        for (int i = 280; i < 288; i++)
-                    huffmanLengthCodes.add(new HuffmanLengthCode(i, 8, 0b11000000 + i));
+        for (int i = 0; i < 112; i++)
+                    huffmanLengthCodes.add(new HuffmanLengthCode(144 + i, 9, 0b110010000 + i));
+        for (int i = 0; i < 24; i++)
+                    huffmanLengthCodes.add(new HuffmanLengthCode(256 + i, 7, i));
+        for (int i = 0; i < 8; i++)
+                    huffmanLengthCodes.add(new HuffmanLengthCode(280 + i, 8, 0b11000000 + i));
         smallestHuffmanLength = 7;
     }
 }

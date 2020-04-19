@@ -4,6 +4,7 @@ package com.dziedzic.filecompresser.algorithms.deflate.common;/*
  * @date 18.04.2020
  */
 
+import java.nio.ByteBuffer;
 import java.util.BitSet;
 
 public class BitReader {
@@ -25,5 +26,20 @@ public class BitReader {
 
     public int getByteIndex(int bitOffset) {
         return bitOffset / BITS_IN_BYTE;
+    }
+
+
+    public byte[] toByteArray(int value) {
+        return  ByteBuffer.allocate(4).putInt(value).array();
+    }
+
+    public int fromByteArray(byte[] bytes) {
+        byte[] byteArray = new byte[Integer.BYTES];
+
+        int i = Integer.BYTES - bytes.length;
+        for (byte item: bytes) {
+            byteArray[i] = item;
+        }
+        return ByteBuffer.wrap(byteArray).getInt();
     }
 }

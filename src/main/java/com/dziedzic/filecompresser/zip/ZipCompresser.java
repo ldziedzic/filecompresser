@@ -38,7 +38,7 @@ public class ZipCompresser {
         switch (fileData.getCompresionMethod()) {
             case DEFLATED:
                 Deflater deflater = new Deflater();
-                deflater.deflate(content);
+                deflater.deflate(content, fileData.getUncompressedSize());
                 break;
             default:
                 break;
