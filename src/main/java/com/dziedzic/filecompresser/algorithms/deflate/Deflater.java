@@ -29,16 +29,28 @@ public class Deflater {
         int smallestHuffmanCodeLength = codeTreesRepresentation.getSmallestHuffmanLength();
         byte[] output = new byte[Math.toIntExact(outputSize)];
 
-        readCompressedContent(content, bitReader, codeTreesRepresentation, smallestHuffmanCodeLength, output);
+        readCompressedContent(content, bitReader, codeTreesRepresentation, smallestHuffmanCodeLength, output, outputSize);
 
         return output;
     }
 
-    private void readCompressedContent(byte[] content, BitReader bitReader, CodeTreesRepresentation codeTreesRepresentation, int smallestHuffmanCodeLength, byte[] output) {
-        boolean endOfBlock = false;
+    private void readCompressedContent(byte[] content, BitReader bitReader,
+                                       CodeTreesRepresentation codeTreesRepresentation, int smallestHuffmanCodeLength,
+                                       byte[] output,  Long outputSize) {
 
         FilePosition filePosition = new FilePosition(3, 0);
 
+        while (isNextBlockExists(outputSize, filePosition))
+            readBlock(content, bitReader, codeTreesRepresentation, smallestHuffmanCodeLength, output, filePosition);
+    }
+
+    private boolean isNextBlockExists(Long outputSize, FilePosition filePosition) {
+        return filePosition.getPosition() < outputSize;
+    }
+
+    private void readBlock(byte[] content, BitReader bitReader, CodeTreesRepresentation codeTreesRepresentation,
+                           int smallestHuffmanCodeLength, byte[] output, FilePosition filePosition) {
+        boolean endOfBlock = false;
         int bitsNumber = smallestHuffmanCodeLength;
 
         while (!endOfBlock) {
@@ -47,9 +59,7 @@ public class Deflater {
 
             for (HuffmanLengthCode huffmanLengthCode: codeTreesRepresentation.getHuffmanLengthCodes()) {
                 if (huffmanLengthCode.getPrefixCode() == codeInt && huffmanLengthCode.getBitsNumber() == bitsNumber) {
-                    System.out.println(huffmanLengthCode.getLengthCode());
                     filePosition.setOffset(filePosition.getOffset() + bitsNumber);
-
 
                     if (huffmanLengthCode.getLengthCode() < END_OF_BLOCK) {
                         copyByteToOutputStream(output, filePosition, huffmanLengthCode);
@@ -57,7 +67,8 @@ public class Deflater {
                     else if (huffmanLengthCode.getLengthCode() == END_OF_BLOCK)
                         endOfBlock = true;
                     else {
-                        CopyMultipleBytesToOutputStream(content, bitReader, codeTreesRepresentation, output, filePosition, huffmanLengthCode);
+                        CopyMultipleBytesToOutputStream(content, bitReader, codeTreesRepresentation, output,
+                                filePosition, huffmanLengthCode);
                     }
                     bitsNumber = smallestHuffmanCodeLength - 1;
                 }
