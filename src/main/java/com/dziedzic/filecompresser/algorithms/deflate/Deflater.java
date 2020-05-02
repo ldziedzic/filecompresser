@@ -9,7 +9,10 @@ import com.dziedzic.filecompresser.algorithms.deflate.entity.BlockHeader;
 import com.dziedzic.filecompresser.algorithms.deflate.entity.CodeTreesRepresentation;
 import com.dziedzic.filecompresser.algorithms.deflate.entity.CompressionType;
 import com.dziedzic.filecompresser.algorithms.deflate.entity.DistanceCode;
+import com.dziedzic.filecompresser.algorithms.deflate.entity.DistanceCodeOutput;
+import com.dziedzic.filecompresser.algorithms.deflate.entity.FilePosition;
 import com.dziedzic.filecompresser.algorithms.deflate.entity.HuffmanLengthCode;
+import com.dziedzic.filecompresser.algorithms.deflate.entity.LengthCode;
 
 public class Deflater {
 
@@ -31,40 +34,28 @@ public class Deflater {
 
     private void readCompressedContent(byte[] content, BitReader bitReader, CodeTreesRepresentation codeTreesRepresentation, int smallestHuffmanCodeLength, byte[] output) {
         boolean endOfBlock = false;
-        int offset = 3;
+
+        FilePosition filePosition = new FilePosition(3, 0);
+
         int bitsNumber = smallestHuffmanCodeLength;
-        int position = 0;
 
         while (!endOfBlock) {
-            byte[] code = bitReader.getBits(content, offset, bitsNumber);
+            byte[] code = bitReader.getBits(content, filePosition.getOffset(), bitsNumber);
             int codeInt = bitReader.fromByteArray(code);
 
             for (HuffmanLengthCode huffmanLengthCode: codeTreesRepresentation.getHuffmanLengthCodes()) {
                 if (huffmanLengthCode.getPrefixCode() == codeInt && huffmanLengthCode.getBitsNumber() == bitsNumber) {
                     System.out.println(huffmanLengthCode.getLengthCode());
-                    offset += bitsNumber;
+                    filePosition.setOffset(filePosition.getOffset() + bitsNumber);
 
 
-                    if (huffmanLengthCode.getLengthCode() < 256)
-                        output[position] = (byte) huffmanLengthCode.getLengthCode();
+                    if (huffmanLengthCode.getLengthCode() < 256) {
+                        copyByteToOutputStream(output, filePosition, huffmanLengthCode);
+                    }
                     else if (huffmanLengthCode.getLengthCode() == 256)
                         endOfBlock = true;
                     else {
-                        bitsNumber = 0;
-                        while (!endOfBlock) {
-
-                            byte[] distanceCode = bitReader.getBits(content, offset, bitsNumber);
-                            int distanceCodeInt = bitReader.fromByteArray(distanceCode);
-
-                            for (DistanceCode distanceCode1: codeTreesRepresentation.getDistanceCodes()) {
-                                if (distanceCode1.getCode() == distanceCodeInt && distanceCode1.getExtraBits() == bitsNumber) {
-                                    System.out.println(distanceCode1.getDistance());
-                                    offset += bitsNumber;
-                                    bitsNumber = smallestHuffmanCodeLength - 1;
-                                }
-                            }
-                            bitsNumber++;
-                        }
+                        CopyMultipleBytesToOutputStream(content, bitReader, codeTreesRepresentation, output, filePosition, huffmanLengthCode);
                     }
                     bitsNumber = smallestHuffmanCodeLength - 1;
                 }
@@ -73,9 +64,52 @@ public class Deflater {
         }
     }
 
+    private void copyByteToOutputStream(byte[] output, FilePosition filePosition, HuffmanLengthCode huffmanLengthCode) {
+        output[filePosition.getPosition()] = (byte) huffmanLengthCode.getLengthCode();
+        filePosition.setPosition(filePosition.getPosition() + 1);
+    }
+
+    private void CopyMultipleBytesToOutputStream(byte[] content, BitReader bitReader, CodeTreesRepresentation codeTreesRepresentation, byte[] output, FilePosition filePosition, HuffmanLengthCode huffmanLengthCode) {
+        LengthCode lengthCode =
+                codeTreesRepresentation.findLengthCode(huffmanLengthCode.getLengthCode());
+        DistanceCodeOutput distanceCodeOutput =
+                getDistance(content, bitReader, codeTreesRepresentation, filePosition.getOffset());
+        filePosition.setOffset(distanceCodeOutput.getOffset());
+
+        int copyPosition = filePosition.getPosition() - distanceCodeOutput.getDistance();
+        for (int i = 0; i < lengthCode.getLength(); i++) {
+            output[filePosition.getPosition()] = output[copyPosition];
+            copyPosition++;
+            filePosition.setPosition(filePosition.getPosition() + 1);
+        }
+    }
+
+    private DistanceCodeOutput getDistance(byte[] content, BitReader bitReader,
+                                           CodeTreesRepresentation codeTreesRepresentation, Integer offset) {
+
+        int distance = 0;
+        for (int bitsNumber = codeTreesRepresentation.MIN_DISTANCE_CODE_LENGTH;
+             bitsNumber <= codeTreesRepresentation.getBiggestDistanceCodeLength(); bitsNumber++) {
+
+            byte[] distanceCodeBits = bitReader.getBits(content, offset, bitsNumber);
+            int distanceCodeInt = bitReader.fromByteArray(distanceCodeBits);
+
+            for (DistanceCode distanceCode: codeTreesRepresentation.getDistanceCodes()) {
+                if (distanceCode.getCode() == distanceCodeInt &&
+                        codeTreesRepresentation.MIN_DISTANCE_CODE_LENGTH + distanceCode.getExtraBits() == bitsNumber) {
+                    System.out.println(distanceCode.getDistance());
+                    offset += bitsNumber;
+                    distance = distanceCode.getDistance();
+                }
+            }
+            bitsNumber++;
+        }
+        return new DistanceCodeOutput(offset, distance);
+    }
+
     private BlockHeader readBlockHeader(byte content) {
-        int isLastBlock = (content & 0x80) >> 7;
-        CompressionType compressionType = CompressionType.valueOf((content & 0x60)  >> 5).orElse(null);
+        int isLastBlock = (content & 0x04) >> 2;
+        CompressionType compressionType = CompressionType.valueOf((content & 0x03)).orElse(null);
 
         return new BlockHeader(isLastBlock > 0, compressionType);
     }

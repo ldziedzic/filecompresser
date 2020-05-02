@@ -8,10 +8,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class CodeTreesRepresentation {
+    public final int MIN_DISTANCE_CODE_LENGTH = 5;
     private List<DistanceCode> distanceCodes;
     private List<LengthCode> lengthCodes;
     private List<HuffmanLengthCode> huffmanLengthCodes;
     private int smallestHuffmanLength;
+    private int biggestDistanceCodeLength;
     private byte[] blockContent;
     private BlockHeader blockHeader;
 
@@ -36,12 +38,24 @@ public class CodeTreesRepresentation {
         return smallestHuffmanLength;
     }
 
+    public int getBiggestDistanceCodeLength() {
+        return biggestDistanceCodeLength;
+    }
+
     public List<DistanceCode> getDistanceCodes() {
         return distanceCodes;
     }
 
     public List<LengthCode> getLengthCodes() {
         return lengthCodes;
+    }
+
+    public LengthCode findLengthCode(int code) {
+        for (LengthCode lengthCode : lengthCodes) {
+            if (lengthCode.getCode() == code)
+                return lengthCode;
+        }
+        return null;
     }
 
     public List<HuffmanLengthCode> getHuffmanLengthCodes() {
@@ -121,6 +135,8 @@ public class CodeTreesRepresentation {
         distanceCodes.add(new DistanceCode(	27,12,12289));
         distanceCodes.add(new DistanceCode(	28,13,16385));
         distanceCodes.add(new DistanceCode(	29,13,24577));
+
+        biggestDistanceCodeLength = 18;
     }
 
     private void generateStaticHuffmanLengthCodes() {
