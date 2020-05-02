@@ -16,6 +16,8 @@ import com.dziedzic.filecompresser.algorithms.deflate.entity.LengthCode;
 
 public class Deflater {
 
+    private static final int END_OF_BLOCK = 256;
+
     public byte[] deflate(byte[] content, Long outputSize) {
         BitReader bitReader = new BitReader();
 
@@ -49,10 +51,10 @@ public class Deflater {
                     filePosition.setOffset(filePosition.getOffset() + bitsNumber);
 
 
-                    if (huffmanLengthCode.getLengthCode() < 256) {
+                    if (huffmanLengthCode.getLengthCode() < END_OF_BLOCK) {
                         copyByteToOutputStream(output, filePosition, huffmanLengthCode);
                     }
-                    else if (huffmanLengthCode.getLengthCode() == 256)
+                    else if (huffmanLengthCode.getLengthCode() == END_OF_BLOCK)
                         endOfBlock = true;
                     else {
                         CopyMultipleBytesToOutputStream(content, bitReader, codeTreesRepresentation, output, filePosition, huffmanLengthCode);
