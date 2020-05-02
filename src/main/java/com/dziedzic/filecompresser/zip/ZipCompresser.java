@@ -8,7 +8,9 @@ package com.dziedzic.filecompresser.zip;
 
 import com.dziedzic.filecompresser.algorithms.deflate.Deflater;
 import com.dziedzic.filecompresser.zip.Entity.FileData;
+import org.apache.commons.io.FilenameUtils;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -27,21 +29,36 @@ public class ZipCompresser {
             decompressFile(fileData,
                     Arrays.copyOfRange(content,
                             offset + fileData.getFileHeaderSize(),
-                            (int) (offset + fileData.getFileHeaderSize() + fileData.getCompressedSize())));
+                            (int) (offset + fileData.getFileHeaderSize() + fileData.getCompressedSize())), path);
 
             offset += fileData.getFileDataSize();
         }
 
     }
 
-    private void decompressFile(FileData fileData, byte[] content) {
+    private void decompressFile(FileData fileData, byte[] content, String path) {
         switch (fileData.getCompresionMethod()) {
             case DEFLATED:
-                Deflater deflater = new Deflater();
-                deflater.deflate(content, fileData.getUncompressedSize());
+                decompressDataUsingDeflate(fileData, content, path);
                 break;
             default:
                 break;
+        }
+    }
+
+    private void decompressDataUsingDeflate(FileData fileData, byte[] content, String path) {
+        Deflater deflater = new Deflater();
+        byte [] output = deflater.deflate(content, fileData.getUncompressedSize());
+        try {
+            String directoryPath = FilenameUtils.removeExtension(path);
+            File f = new File(directoryPath);
+
+            boolean isDirectoryCreated = f.mkdirs();
+            if (isDirectoryCreated)
+                System.out.println("Created directory " + directoryPath);
+            Files.write(Paths.get(directoryPath, fileData.getFilename()), output);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
