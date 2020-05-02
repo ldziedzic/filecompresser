@@ -57,7 +57,9 @@ public class ZipCompresser {
             if (isDirectoryCreated)
                 System.out.println("Created directory " + directoryPath);
             Files.write(Paths.get(directoryPath, fileData.getFilename()), output);
+            System.out.println("Successfully decompressed " + fileData.getFilename());
         } catch (IOException e) {
+            System.out.println("Failed to decompress " + fileData.getFilename());
             e.printStackTrace();
         }
     }

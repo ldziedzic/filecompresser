@@ -110,7 +110,6 @@ public class Deflater {
             for (DistanceCode distanceCode: codeTreesRepresentation.getDistanceCodes()) {
                 if (distanceCode.getCode() == distanceCodeInt &&
                         codeTreesRepresentation.MIN_DISTANCE_CODE_LENGTH + distanceCode.getExtraBits() == bitsNumber) {
-                    System.out.println(distanceCode.getDistance());
                     offset += bitsNumber;
                     distance = distanceCode.getDistance();
                 }
