@@ -1,14 +1,23 @@
-package com.dziedzic.filecompresser.algorithms.deflate.entity;/*
+package com.dziedzic.filecompresser.algorithms.deflate;/*
  * @project filecompresser
  * @author Łukasz Dziedzic
  * @date 18.04.2020
  */
 
+import com.dziedzic.filecompresser.algorithms.deflate.common.BitReader;
+import com.dziedzic.filecompresser.algorithms.deflate.entity.BlockHeader;
+import com.dziedzic.filecompresser.algorithms.deflate.entity.CompressionType;
+import com.dziedzic.filecompresser.algorithms.deflate.entity.DistanceCode;
+import com.dziedzic.filecompresser.algorithms.deflate.entity.HuffmanCodeLengthData;
+import com.dziedzic.filecompresser.algorithms.deflate.entity.HuffmanLengthCode;
+import com.dziedzic.filecompresser.algorithms.deflate.entity.LengthCode;
+
 import java.util.ArrayList;
 import java.util.List;
 
-public class CodeTreesRepresentation {
-    public final int MIN_DISTANCE_CODE_LENGTH = 5;
+public class CodeTreesRepresener {
+    final int MIN_DISTANCE_CODE_LENGTH = 5;
+    private final int MAX_HUFFMAN_LENGTH = 16;
     private List<DistanceCode> distanceCodes;
     private List<LengthCode> lengthCodes;
     private List<HuffmanLengthCode> huffmanLengthCodes;
@@ -16,15 +25,16 @@ public class CodeTreesRepresentation {
     private int biggestDistanceCodeLength;
     private byte[] blockContent;
     private BlockHeader blockHeader;
+    private int offset;
 
-    public CodeTreesRepresentation(byte[] blockContent, BlockHeader blockHeader) {
+    public CodeTreesRepresener(byte[] blockContent, BlockHeader blockHeader, int offset) {
         this.blockContent = blockContent;
         this.blockHeader = blockHeader;
+        this.offset = offset;
         smallestHuffmanLength = 0;
         distanceCodes = new ArrayList<>();
         lengthCodes = new ArrayList<>();
         huffmanLengthCodes = new ArrayList<>();
-
     }
 
     public void generateCodeTreesRepresentation() {
@@ -62,14 +72,147 @@ public class CodeTreesRepresentation {
         return huffmanLengthCodes;
     }
 
-    private void generateDynamicCodeTreesRepresentation() {
-
-    }
-
     private void generateStaticCodeTreesRepresentation() {
         generateStaticDistanceCodes();
         generateStaticLengthCodes();
         generateStaticHuffmanLengthCodes();
+    }
+
+    public int getOffset() {
+        return offset;
+    }
+
+    private void generateDynamicCodeTreesRepresentation() {
+        int alphabetLength = getLiteralLengthAlphabetLength();
+        int distanceAlphabetLength = getDistanceAlphabetLength();
+        int codeAlphabetLength = getCodeAlphabetLength();
+        List<HuffmanCodeLengthData> huffmanCodeLengthDataList = readCodeLengthsForCodeLengthAlphabet(codeAlphabetLength);
+        generateDynamicsHuffmanLengthCodes(huffmanCodeLengthDataList);
+
+        return;
+    }
+
+    private int getLiteralLengthAlphabetLength() {
+        BitReader bitReader = new BitReader();
+
+        byte[] code = bitReader.getBitsLittleEndian(blockContent, offset, 5);
+        offset += 5;
+
+        return bitReader.fromByteArray(code, 5);
+    }
+
+    private int getDistanceAlphabetLength() {
+        BitReader bitReader = new BitReader();
+
+        byte[] code = bitReader.getBitsLittleEndian(blockContent, offset, 5);
+        offset += 5;
+
+        return bitReader.fromByteArray(code, 5);
+    }
+
+    private int getCodeAlphabetLength() {
+        BitReader bitReader = new BitReader();
+
+        byte[] code = bitReader.getBitsLittleEndian(blockContent, offset, 4);
+        offset += 4;
+
+        return bitReader.fromByteArray(code, 4);
+    }
+
+    private List<HuffmanCodeLengthData> readCodeLengthsForCodeLengthAlphabet(int codesNumber) {
+        BitReader bitReader = new BitReader();
+        List<HuffmanCodeLengthData> huffmanCodeLengthDataList = new ArrayList<>();
+        for (int i = 0; i < codesNumber; i++) {
+            byte[] code = bitReader.getBitsLittleEndian(blockContent, offset, 3);
+            offset += 3;
+
+            HuffmanCodeLengthData huffmanCodeLengthData = new HuffmanCodeLengthData(
+                    getCodeLengthIndex(i), bitReader.fromByteArray(code, 3));
+            huffmanCodeLengthDataList.add(huffmanCodeLengthData);
+        }
+        return huffmanCodeLengthDataList;
+    }
+
+    private int getCodeLengthIndex(int position) {
+        switch (position) {
+            case 0:
+                return 16;
+            case 1:
+                return 17;
+            case 2:
+                return 18;
+            case 3:
+                return 0;
+            case 4:
+                return 8;
+            case 5:
+                return 7;
+            case 6:
+                return 9;
+            case 7:
+                return 6;
+            case 8:
+                return 10;
+            case 9:
+                return 5;
+            case 10:
+                return 11;
+            case 11:
+                return 4;
+            case 12:
+                return 12;
+            case 13:
+                return 3;
+            case 14:
+                return 13;
+            case 15:
+                return 2;
+            case 16:
+                return 14;
+            case 17:
+                return 1;
+            case 18:
+                return 15;
+            default:
+                return -1;
+        }
+    }
+
+
+    private void generateDynamicsHuffmanLengthCodes(List<HuffmanCodeLengthData> huffmanCodeLengthDataList) {
+        int [] codeLengthOccurrences = new int[MAX_HUFFMAN_LENGTH];
+        int [] nextCodes = new int[MAX_HUFFMAN_LENGTH];
+        int [] huffmanCodes = new int[huffmanCodeLengthDataList.size()];
+
+        for (HuffmanCodeLengthData huffmanCodeLengthData : huffmanCodeLengthDataList) {
+            codeLengthOccurrences[huffmanCodeLengthData.counter]++;
+        }
+
+        codeLengthOccurrences[0] = 0;
+
+        for (int i = 1; i < MAX_HUFFMAN_LENGTH; i++) {
+            nextCodes[i] = 2 * (nextCodes[i - 1] + codeLengthOccurrences[i - 1]);
+        }
+
+        for (int i = 0; i < huffmanCodes.length; i++) {
+            if (huffmanCodeLengthDataList.get(i).counter == 0)
+                continue;
+            huffmanCodes[i] = nextCodes[huffmanCodeLengthDataList.get(i).counter];
+            nextCodes[huffmanCodeLengthDataList.get(i).counter]++;
+        }
+
+        for (int i = 0; i < huffmanCodes.length; i++) {
+            huffmanCodeLengthDataList.get(i).huffmanCode = huffmanCodes[i];
+            huffmanCodeLengthDataList.get(i).bitsNumber = getBitsNumber(huffmanCodes[i]);
+        }
+    }
+
+    private int getBitsNumber(int number) {
+        if (number < 0)
+            return 0;
+        else if (number == 0)
+            return 1;
+        return (int)(Math.log(number) / Math.log(2) + 1);
     }
 
     private void generateStaticLengthCodes() {

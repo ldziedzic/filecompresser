@@ -26,6 +26,16 @@ public class BitReader {
 
     }
 
+    public byte[] getBitsLittleEndian(byte[] content, int offset, int bitsNumber) {
+        if (bitsNumber == 0)
+            return new byte[]{0};
+        BitSet bitSet = BitSet.valueOf(content);
+        byte[] newContent =  bitSet.get(offset, offset + bitsNumber).toByteArray();
+        if (newContent.length == 0)
+            return new byte[]{0};
+        return newContent;
+    }
+
     public byte[] rewind(byte[] content) {
         int i = 0;
         for (byte byteContent : content) {
@@ -44,12 +54,13 @@ public class BitReader {
         return  ByteBuffer.allocate(4).putInt(value).array();
     }
 
-    public int fromByteArray(byte[] bytes) {
+    public int fromByteArray(byte[] bytes, int bitsNumber) {
         byte[] byteArray = new byte[Integer.BYTES];
 
         int i = Integer.BYTES - bytes.length;
         for (byte item: bytes) {
             byteArray[i] = item;
+            i++;
         }
         return ByteBuffer.wrap(byteArray).getInt();
     }
