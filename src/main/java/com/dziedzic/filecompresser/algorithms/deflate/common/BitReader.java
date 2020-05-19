@@ -20,7 +20,8 @@ public class BitReader {
             return new byte[]{0};
         if (bitsNumber % BITS_IN_BYTE != 0) {
             int shiftBits = BITS_IN_BYTE - bitsNumber % BITS_IN_BYTE;
-            return new BigInteger(newContent).shiftRight(shiftBits).toByteArray();
+            return toByteArray(fromByteArray(newContent) >>> shiftBits);
+
         } else
             return newContent;
 
@@ -54,13 +55,21 @@ public class BitReader {
         return  ByteBuffer.allocate(4).putInt(value).array();
     }
 
-    public int fromByteArray(byte[] bytes, int bitsNumber) {
+    public int fromByteArray(byte[] bytes) {
+        if (bytes.length == 0)
+            return 0;
+        if (bytes.length > 4)
+            throw new IndexOutOfBoundsException("Failed to convert bytes array to int");
         byte[] byteArray = new byte[Integer.BYTES];
 
         int i = Integer.BYTES - bytes.length;
-        for (byte item: bytes) {
-            byteArray[i] = item;
-            i++;
+        try {
+            for (byte item: bytes) {
+                byteArray[i] = item;
+                i++;
+            }
+        } catch (Exception ex) {
+            System.out.println(bytes);
         }
         return ByteBuffer.wrap(byteArray).getInt();
     }

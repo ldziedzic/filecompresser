@@ -32,7 +32,7 @@ public class Deflater {
         FilePosition filePosition = new FilePosition(0, 0);
 
         while (isNextBlockExists(outputSize, filePosition)) {
-            BlockHeader blockHeader = readBlockHeader(bitReader.getBits(content, filePosition.getOffset(), 3)[0]);
+            BlockHeader blockHeader = readBlockHeader(bitReader.getBits(content, filePosition.getOffset(), 3)[3]);
             filePosition.setOffset(filePosition.getOffset() + 3);
 
             CodeTreesRepresener codeTreesRepresener = new CodeTreesRepresener(content, blockHeader, filePosition.getOffset());
@@ -54,7 +54,7 @@ public class Deflater {
 
         while (!endOfBlock) {
             byte[] code = bitReader.getBits(content, filePosition.getOffset(), bitsNumber);
-            int codeInt = bitReader.fromByteArray(code, bitsNumber);
+            int codeInt = bitReader.fromByteArray(code);
 
             for (HuffmanLengthCode huffmanLengthCode: codeTreesRepresener.getHuffmanLengthCodes()) {
                 if (huffmanLengthCode.getPrefixCode() == codeInt && huffmanLengthCode.getBitsNumber() == bitsNumber) {
@@ -104,7 +104,7 @@ public class Deflater {
              bitsNumber <= codeTreesRepresener.getBiggestDistanceCodeLength(); bitsNumber++) {
 
             byte[] distanceCodeBits = bitReader.getBits(content, offset, bitsNumber);
-            int distanceCodeInt = bitReader.fromByteArray(distanceCodeBits, bitsNumber);
+            int distanceCodeInt = bitReader.fromByteArray(distanceCodeBits);
 
             for (DistanceCode distanceCode: codeTreesRepresener.getDistanceCodes()) {
                 if (distanceCode.getCode() == distanceCodeInt &&

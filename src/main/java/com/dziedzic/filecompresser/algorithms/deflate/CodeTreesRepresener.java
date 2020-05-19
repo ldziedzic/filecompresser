@@ -15,6 +15,9 @@ import com.dziedzic.filecompresser.algorithms.deflate.entity.LengthCode;
 import java.util.ArrayList;
 import java.util.List;
 
+import static java.lang.Math.max;
+import static java.lang.Math.min;
+
 public class CodeTreesRepresener {
     final int MIN_DISTANCE_CODE_LENGTH = 5;
     private final int MAX_HUFFMAN_LENGTH = 16;
@@ -89,6 +92,10 @@ public class CodeTreesRepresener {
         List<HuffmanCodeLengthData> huffmanCodeLengthDataList = readCodeLengthsForCodeLengthAlphabet(codeAlphabetLength);
         generateDynamicsHuffmanLengthCodes(huffmanCodeLengthDataList);
 
+        // ToDo return output
+        readHuffmanCodes(alphabetLength, huffmanCodeLengthDataList);
+        System.out.println("------------------------------");
+        readHuffmanCodes(distanceAlphabetLength, huffmanCodeLengthDataList);
         return;
     }
 
@@ -98,7 +105,7 @@ public class CodeTreesRepresener {
         byte[] code = bitReader.getBitsLittleEndian(blockContent, offset, 5);
         offset += 5;
 
-        return bitReader.fromByteArray(code, 5);
+        return bitReader.fromByteArray(code) + 257;
     }
 
     private int getDistanceAlphabetLength() {
@@ -107,7 +114,7 @@ public class CodeTreesRepresener {
         byte[] code = bitReader.getBitsLittleEndian(blockContent, offset, 5);
         offset += 5;
 
-        return bitReader.fromByteArray(code, 5);
+        return bitReader.fromByteArray(code) + 1;
     }
 
     private int getCodeAlphabetLength() {
@@ -116,19 +123,18 @@ public class CodeTreesRepresener {
         byte[] code = bitReader.getBitsLittleEndian(blockContent, offset, 4);
         offset += 4;
 
-        return bitReader.fromByteArray(code, 4);
+        return bitReader.fromByteArray(code) + 4;
     }
 
     private List<HuffmanCodeLengthData> readCodeLengthsForCodeLengthAlphabet(int codesNumber) {
         BitReader bitReader = new BitReader();
         List<HuffmanCodeLengthData> huffmanCodeLengthDataList = new ArrayList<>();
+        for (int i = 0; i < 19; i++) {
+            huffmanCodeLengthDataList.add(new HuffmanCodeLengthData(i,0));
+        }
         for (int i = 0; i < codesNumber; i++) {
-            byte[] code = bitReader.getBitsLittleEndian(blockContent, offset, 3);
+            huffmanCodeLengthDataList.get(getCodeLengthIndex(i)).lengths = bitReader.fromByteArray(bitReader.getBitsLittleEndian(blockContent, offset, 3));
             offset += 3;
-
-            HuffmanCodeLengthData huffmanCodeLengthData = new HuffmanCodeLengthData(
-                    getCodeLengthIndex(i), bitReader.fromByteArray(code, 3));
-            huffmanCodeLengthDataList.add(huffmanCodeLengthData);
         }
         return huffmanCodeLengthDataList;
     }
@@ -178,14 +184,13 @@ public class CodeTreesRepresener {
         }
     }
 
-
     private void generateDynamicsHuffmanLengthCodes(List<HuffmanCodeLengthData> huffmanCodeLengthDataList) {
         int [] codeLengthOccurrences = new int[MAX_HUFFMAN_LENGTH];
         int [] nextCodes = new int[MAX_HUFFMAN_LENGTH];
         int [] huffmanCodes = new int[huffmanCodeLengthDataList.size()];
 
         for (HuffmanCodeLengthData huffmanCodeLengthData : huffmanCodeLengthDataList) {
-            codeLengthOccurrences[huffmanCodeLengthData.counter]++;
+            codeLengthOccurrences[huffmanCodeLengthData.lengths]++;
         }
 
         codeLengthOccurrences[0] = 0;
@@ -195,15 +200,65 @@ public class CodeTreesRepresener {
         }
 
         for (int i = 0; i < huffmanCodes.length; i++) {
-            if (huffmanCodeLengthDataList.get(i).counter == 0)
+            if (huffmanCodeLengthDataList.get(i).lengths == 0)
                 continue;
-            huffmanCodes[i] = nextCodes[huffmanCodeLengthDataList.get(i).counter];
-            nextCodes[huffmanCodeLengthDataList.get(i).counter]++;
+            huffmanCodes[i] = nextCodes[huffmanCodeLengthDataList.get(i).lengths];
+            nextCodes[huffmanCodeLengthDataList.get(i).lengths]++;
         }
 
         for (int i = 0; i < huffmanCodes.length; i++) {
+            if (huffmanCodeLengthDataList.get(i).lengths == 0)
+                continue;
             huffmanCodeLengthDataList.get(i).huffmanCode = huffmanCodes[i];
-            huffmanCodeLengthDataList.get(i).bitsNumber = getBitsNumber(huffmanCodes[i]);
+            huffmanCodeLengthDataList.get(i).bitsNumber = max(getBitsNumber(huffmanCodes[i]), 2);
+        }
+    }
+
+    private void readHuffmanCodes(int elementsNumber, List<HuffmanCodeLengthData> huffmanCodeLengthDataList) {
+        BitReader bitReader = new BitReader();
+        int bitsNumber = 2;
+        int loadedElements = 0;
+
+        while (loadedElements < elementsNumber) {
+            boolean foundNext = false;
+            while (!foundNext) {
+                byte[] code = bitReader.getBits(blockContent, offset, bitsNumber);
+                int codeInt = bitReader.fromByteArray(code);
+
+                for (HuffmanCodeLengthData huffmanCodeLengthData : huffmanCodeLengthDataList) {
+                    if (huffmanCodeLengthData.huffmanCode == codeInt && huffmanCodeLengthData.bitsNumber == bitsNumber) {
+                        offset += bitsNumber;
+                        if (huffmanCodeLengthData.index <= 15) {
+                            System.out.println(loadedElements + ": " + huffmanCodeLengthData.index);
+                            loadedElements++;
+                        }
+                        if (huffmanCodeLengthData.index == 16) {
+                            System.out.println(codeInt);
+                        } else if (huffmanCodeLengthData.index == 17) {
+                            byte[] additionalBits = bitReader.getBitsLittleEndian(blockContent, offset, 3);
+                            int additionalBitsInt = bitReader.fromByteArray(additionalBits) + 3;
+                            offset += 3;
+                            for (int i = 0; i < additionalBitsInt; i++) {
+                                System.out.println(loadedElements + ": 0");
+                                loadedElements++;
+                            }
+                        } else if (huffmanCodeLengthData.index == 18) {
+                            byte[] additionalBits = bitReader.getBitsLittleEndian(blockContent, offset, 7);
+                            int additionalBitsInt = bitReader.fromByteArray(additionalBits) + 11;
+                            offset += 7;
+                            for (int i = 0; i < additionalBitsInt; i++) {
+                                System.out.println(loadedElements + ": 0");
+                                loadedElements++;
+                            }
+                        }
+
+                        bitsNumber = 1;
+                        foundNext = true;
+
+                    }
+                }
+                bitsNumber++;
+            }
         }
     }
 
