@@ -10,7 +10,7 @@ import com.dziedzic.filecompresser.algorithms.deflate.entity.CompressionType;
 import com.dziedzic.filecompresser.algorithms.deflate.entity.DistanceCode;
 import com.dziedzic.filecompresser.algorithms.deflate.entity.DistanceCodeOutput;
 import com.dziedzic.filecompresser.algorithms.deflate.entity.FilePosition;
-import com.dziedzic.filecompresser.algorithms.deflate.entity.HuffmanLengthCode;
+import com.dziedzic.filecompresser.algorithms.deflate.entity.HuffmanCodeLengthData;
 import com.dziedzic.filecompresser.algorithms.deflate.entity.LengthCode;
 
 public class Deflater {
@@ -56,8 +56,8 @@ public class Deflater {
             byte[] code = bitReader.getBits(content, filePosition.getOffset(), bitsNumber);
             int codeInt = bitReader.fromByteArray(code);
 
-            for (HuffmanLengthCode huffmanLengthCode: codeTreesRepresener.getHuffmanLengthCodes()) {
-                if (huffmanLengthCode.getPrefixCode() == codeInt && huffmanLengthCode.getBitsNumber() == bitsNumber) {
+            for (HuffmanCodeLengthData huffmanLengthCode: codeTreesRepresener.getHuffmanLengthCodes()) {
+                if (huffmanLengthCode.getHuffmanCode() == codeInt && huffmanLengthCode.getBitsNumber() == bitsNumber) {
                     filePosition.setOffset(filePosition.getOffset() + bitsNumber);
 
                     if (huffmanLengthCode.getLengthCode() < END_OF_BLOCK) {
@@ -76,12 +76,12 @@ public class Deflater {
         }
     }
 
-    private void copyByteToOutputStream(byte[] output, FilePosition filePosition, HuffmanLengthCode huffmanLengthCode) {
+    private void copyByteToOutputStream(byte[] output, FilePosition filePosition, HuffmanCodeLengthData huffmanLengthCode) {
         output[filePosition.getPosition()] = (byte) huffmanLengthCode.getLengthCode();
         filePosition.setPosition(filePosition.getPosition() + 1);
     }
 
-    private void CopyMultipleBytesToOutputStream(byte[] content, BitReader bitReader, CodeTreesRepresener codeTreesRepresener, byte[] output, FilePosition filePosition, HuffmanLengthCode huffmanLengthCode) {
+    private void CopyMultipleBytesToOutputStream(byte[] content, BitReader bitReader, CodeTreesRepresener codeTreesRepresener, byte[] output, FilePosition filePosition, HuffmanCodeLengthData huffmanLengthCode) {
         LengthCode lengthCode =
                 codeTreesRepresener.findLengthCode(huffmanLengthCode.getLengthCode());
         DistanceCodeOutput distanceCodeOutput =
