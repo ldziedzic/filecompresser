@@ -15,10 +15,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static java.lang.Math.max;
-import static java.lang.Math.min;
 
 public class CodeTreesRepresener {
-    final int MIN_DISTANCE_CODE_LENGTH = 5;
+    final int MIN_DISTANCE_CODE_LENGTH = 1;
     private final int MAX_HUFFMAN_LENGTH = 16;
     private List<DistanceCode> distanceCodes;
     private List<LengthCode> lengthCodes;
@@ -92,11 +91,15 @@ public class CodeTreesRepresener {
         generateDynamicsHuffmanLengthCodes(huffmanCodeLengthDataList);
 
         // ToDo return output
-        List<HuffmanCodeLengthData> literalHuffmanLengths = readHuffmanCodes(alphabetLength, huffmanCodeLengthDataList);
-        generateDynamicsHuffmanLengthCodes(literalHuffmanLengths);
-        System.out.println("------------------------------");
+        huffmanLengthCodes = readHuffmanCodes(alphabetLength, huffmanCodeLengthDataList);
+        generateDynamicsHuffmanLengthCodes(huffmanLengthCodes);
+        findSmallestHuffmanLength();
+
         List<HuffmanCodeLengthData> distanceHuffmanLengths = readHuffmanCodes(distanceAlphabetLength, huffmanCodeLengthDataList);
         generateDynamicsHuffmanLengthCodes(distanceHuffmanLengths);
+        generateDynamicsDistanceCodes(distanceHuffmanLengths);
+
+        generateStaticLengthCodes();
         return;
     }
 
@@ -211,7 +214,7 @@ public class CodeTreesRepresener {
             if (huffmanCodeLengthDataList.get(i).lengthCode == 0)
                 continue;
             huffmanCodeLengthDataList.get(i).huffmanCode = huffmanCodes[i];
-            huffmanCodeLengthDataList.get(i).bitsNumber = max(getBitsNumber(huffmanCodes[i]), 2);
+            huffmanCodeLengthDataList.get(i).bitsNumber = max(getBitsNumber(huffmanCodes[i]), huffmanCodeLengthDataList.get(i).lengthCode);
         }
     }
 
@@ -232,8 +235,6 @@ public class CodeTreesRepresener {
                         offset += bitsNumber;
                         if (huffmanCodeLengthData.index <= 15) {
                             newHuffmanCodeLengthDataList.add(new HuffmanCodeLengthData(loadedElements, huffmanCodeLengthData.index));
-
-                            System.out.println(loadedElements + ": " + huffmanCodeLengthData.index);
                             loadedElements++;
                         }
                         if (huffmanCodeLengthData.index == 16) {
@@ -262,7 +263,6 @@ public class CodeTreesRepresener {
         offset += nextBits;
         for (int i = 0; i < additionalBitsInt; i++) {
             newHuffmanCodeLengthDataList.add(new HuffmanCodeLengthData(loadedElements, valueToCopy));
-            System.out.println(loadedElements + ": 0");
             loadedElements++;
         }
         return loadedElements;
@@ -274,6 +274,16 @@ public class CodeTreesRepresener {
         else if (number == 0)
             return 1;
         return (int)(Math.log(number) / Math.log(2) + 1);
+    }
+
+    private void findSmallestHuffmanLength() {
+        smallestHuffmanLength = 1000000;
+        for (HuffmanCodeLengthData huffmanCodeLengthData : huffmanLengthCodes) {
+            if (huffmanCodeLengthData.lengthCode == 0)
+                continue;
+            if (huffmanCodeLengthData.bitsNumber < smallestHuffmanLength)
+                smallestHuffmanLength = huffmanCodeLengthData.bitsNumber;
+        }
     }
 
     private void generateStaticLengthCodes() {
@@ -308,50 +318,75 @@ public class CodeTreesRepresener {
         lengthCodes.add(new LengthCode(	285,0,258));
     }
 
+    private void generateDynamicsDistanceCodes(List<HuffmanCodeLengthData> distanceHuffmanLengths) {
+        List<DistanceCode> staticDistanceCodes = getStaticDistanceCodes();
+        biggestDistanceCodeLength = 0;
+
+        int index = 0;
+        for (HuffmanCodeLengthData distanceHuffmanLength : distanceHuffmanLengths) {
+            if (distanceHuffmanLength.bitsNumber > 0) {
+                staticDistanceCodes.get(index).setCode(distanceHuffmanLength.huffmanCode);
+                staticDistanceCodes.get(index).setBitsNumber(distanceHuffmanLength.bitsNumber);
+                if (biggestDistanceCodeLength < distanceHuffmanLength.bitsNumber)
+                    biggestDistanceCodeLength = distanceHuffmanLength.bitsNumber;
+                distanceCodes.add(staticDistanceCodes.get(index));
+            }
+            index++;
+        }
+    }
+
     private void generateStaticDistanceCodes() {
-        distanceCodes.add(new DistanceCode(	0,0,1));
-        distanceCodes.add(new DistanceCode(	1,0,2));
-        distanceCodes.add(new DistanceCode(	2,0,3));
-        distanceCodes.add(new DistanceCode(	3,0,4));
-        distanceCodes.add(new DistanceCode(	4,1,5));
-        distanceCodes.add(new DistanceCode(	5,1,7));
-        distanceCodes.add(new DistanceCode(	6,2,9));
-        distanceCodes.add(new DistanceCode(	7,2,13));
-        distanceCodes.add(new DistanceCode(	8,3,17));
-        distanceCodes.add(new DistanceCode(	9,3,25));
-        distanceCodes.add(new DistanceCode(	10,4,33));
-        distanceCodes.add(new DistanceCode(	11,4,49));
-        distanceCodes.add(new DistanceCode(	12,5,65));
-        distanceCodes.add(new DistanceCode(	13,5,97));
-        distanceCodes.add(new DistanceCode(	14,6,129));
-        distanceCodes.add(new DistanceCode(	15,6,193));
-        distanceCodes.add(new DistanceCode(	16,7,257));
-        distanceCodes.add(new DistanceCode(	17,7,385));
-        distanceCodes.add(new DistanceCode(	18,8,513));
-        distanceCodes.add(new DistanceCode(	19,8,769));
-        distanceCodes.add(new DistanceCode(	20,9,1025));
-        distanceCodes.add(new DistanceCode(	21,9,1537));
-        distanceCodes.add(new DistanceCode(	22,10,2049));
-        distanceCodes.add(new DistanceCode(	23,10,3073));
-        distanceCodes.add(new DistanceCode(	24,11,4097));
-        distanceCodes.add(new DistanceCode(	25,11,6145));
-        distanceCodes.add(new DistanceCode(	26,12,8193));
-        distanceCodes.add(new DistanceCode(	27,12,12289));
-        distanceCodes.add(new DistanceCode(	28,13,16385));
-        distanceCodes.add(new DistanceCode(	29,13,24577));
+        distanceCodes = getStaticDistanceCodes();
 
         biggestDistanceCodeLength = 18;
+    }
+
+    private List<DistanceCode> getStaticDistanceCodes() {
+        List<DistanceCode> staticDistanceCodes = new ArrayList<>();
+
+        staticDistanceCodes.add(new DistanceCode(	0,0,1));
+        staticDistanceCodes.add(new DistanceCode(	1,0,2));
+        staticDistanceCodes.add(new DistanceCode(	2,0,3));
+        staticDistanceCodes.add(new DistanceCode(	3,0,4));
+        staticDistanceCodes.add(new DistanceCode(	4,1,5));
+        staticDistanceCodes.add(new DistanceCode(	5,1,7));
+        staticDistanceCodes.add(new DistanceCode(	6,2,9));
+        staticDistanceCodes.add(new DistanceCode(	7,2,13));
+        staticDistanceCodes.add(new DistanceCode(	8,3,17));
+        staticDistanceCodes.add(new DistanceCode(	9,3,25));
+        staticDistanceCodes.add(new DistanceCode(	10,4,33));
+        staticDistanceCodes.add(new DistanceCode(	11,4,49));
+        staticDistanceCodes.add(new DistanceCode(	12,5,65));
+        staticDistanceCodes.add(new DistanceCode(	13,5,97));
+        staticDistanceCodes.add(new DistanceCode(	14,6,129));
+        staticDistanceCodes.add(new DistanceCode(	15,6,193));
+        staticDistanceCodes.add(new DistanceCode(	16,7,257));
+        staticDistanceCodes.add(new DistanceCode(	17,7,385));
+        staticDistanceCodes.add(new DistanceCode(	18,8,513));
+        staticDistanceCodes.add(new DistanceCode(	19,8,769));
+        staticDistanceCodes.add(new DistanceCode(	20,9,1025));
+        staticDistanceCodes.add(new DistanceCode(	21,9,1537));
+        staticDistanceCodes.add(new DistanceCode(	22,10,2049));
+        staticDistanceCodes.add(new DistanceCode(	23,10,3073));
+        staticDistanceCodes.add(new DistanceCode(	24,11,4097));
+        staticDistanceCodes.add(new DistanceCode(	25,11,6145));
+        staticDistanceCodes.add(new DistanceCode(	26,12,8193));
+        staticDistanceCodes.add(new DistanceCode(	27,12,12289));
+        staticDistanceCodes.add(new DistanceCode(	28,13,16385));
+        staticDistanceCodes.add(new DistanceCode(	29,13,24577));
+
+        return staticDistanceCodes;
     }
 
     private void generateStaticHuffmanLengthCodes() {
         for (int i = 0; i < 144; i++)
             huffmanLengthCodes.add(new HuffmanCodeLengthData(i, i, 8, 0b00110000 + i));
         for (int i = 0; i < 112; i++)
-                    huffmanLengthCodes.add(new HuffmanCodeLengthData(i, 144 + i, 9, 0b110010000 + i));
+                    huffmanLengthCodes.add(new HuffmanCodeLengthData(144 + i, 144 + i, 9, 0b110010000 + i));
         for (int i = 0; i < 24; i++)
-                    huffmanLengthCodes.add(new HuffmanCodeLengthData(i, 256 + i, 7, i));
+                    huffmanLengthCodes.add(new HuffmanCodeLengthData(256 + i, 256 + i, 7, i));
         for (int i = 0; i < 8; i++)
-                    huffmanLengthCodes.add(new HuffmanCodeLengthData(i, 280 + i, 8, 0b11000000 + i));
+                    huffmanLengthCodes.add(new HuffmanCodeLengthData(280 + i, 280 + i, 8, 0b11000000 + i));
         smallestHuffmanLength = 7;
     }
 }

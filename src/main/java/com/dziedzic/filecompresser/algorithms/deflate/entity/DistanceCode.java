@@ -6,6 +6,7 @@ package com.dziedzic.filecompresser.algorithms.deflate.entity;/*
 
 public class DistanceCode {
     private int code;
+    private int bitsNumber = 5; // Default value for statics Distance Codes
     private int extraBits;
     private int distance;
 
@@ -19,11 +20,27 @@ public class DistanceCode {
         return code;
     }
 
-    public int getExtraBits() {
-        return extraBits;
+    public void setCode(int code) {
+        this.code = code;
+    }
+
+    public int getBitsNumber() {
+        return bitsNumber;
+    }
+
+    public void setBitsNumber(int bitsNumber) {
+        this.bitsNumber = bitsNumber;
     }
 
     public int getDistance() {
         return distance;
+    }
+
+    public int getExtraBits() {
+        return extraBits;
+    }
+
+    public void setExtraBits(int extraBits) {
+        this.extraBits = extraBits;
     }
 }

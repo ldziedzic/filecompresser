@@ -37,6 +37,7 @@ public class Deflater {
 
             CodeTreesRepresener codeTreesRepresener = new CodeTreesRepresener(content, blockHeader, filePosition.getOffset());
             codeTreesRepresener.generateCodeTreesRepresentation();
+            filePosition.setOffset(codeTreesRepresener.getOffset());
 
             int smallestHuffmanCodeLength = codeTreesRepresener.getSmallestHuffmanLength();
             readBlock(content, bitReader, codeTreesRepresener, smallestHuffmanCodeLength, output, filePosition);
@@ -60,12 +61,15 @@ public class Deflater {
                 if (huffmanLengthCode.getHuffmanCode() == codeInt && huffmanLengthCode.getBitsNumber() == bitsNumber) {
                     filePosition.setOffset(filePosition.getOffset() + bitsNumber);
 
-                    if (huffmanLengthCode.getLengthCode() < END_OF_BLOCK) {
+
+                    if (huffmanLengthCode.getIndex() < END_OF_BLOCK) {
+                        System.out.print((char)huffmanLengthCode.getIndex());
                         copyByteToOutputStream(output, filePosition, huffmanLengthCode);
                     }
-                    else if (huffmanLengthCode.getLengthCode() == END_OF_BLOCK)
+                    else if (huffmanLengthCode.getIndex() == END_OF_BLOCK)
                         endOfBlock = true;
                     else {
+                        //System.out.println(huffmanLengthCode.getIndex());
                         CopyMultipleBytesToOutputStream(content, bitReader, codeTreesRepresener, output,
                                 filePosition, huffmanLengthCode);
                     }
@@ -77,20 +81,24 @@ public class Deflater {
     }
 
     private void copyByteToOutputStream(byte[] output, FilePosition filePosition, HuffmanCodeLengthData huffmanLengthCode) {
-        output[filePosition.getPosition()] = (byte) huffmanLengthCode.getLengthCode();
+        output[filePosition.getPosition()] = (byte) huffmanLengthCode.getIndex();
         filePosition.setPosition(filePosition.getPosition() + 1);
     }
 
     private void CopyMultipleBytesToOutputStream(byte[] content, BitReader bitReader, CodeTreesRepresener codeTreesRepresener, byte[] output, FilePosition filePosition, HuffmanCodeLengthData huffmanLengthCode) {
         LengthCode lengthCode =
-                codeTreesRepresener.findLengthCode(huffmanLengthCode.getLengthCode());
+                codeTreesRepresener.findLengthCode(huffmanLengthCode.getIndex());
+        byte[] additionalBits = bitReader.getBitsLittleEndian(content, filePosition.getOffset(), lengthCode.getExtraBits());
+        int additionalLength = bitReader.fromByteArray(additionalBits);
+        filePosition.setOffset(filePosition.getOffset() + lengthCode.getExtraBits());
         DistanceCodeOutput distanceCodeOutput =
                 getDistance(content, bitReader, codeTreesRepresener, filePosition.getOffset());
         filePosition.setOffset(distanceCodeOutput.getOffset());
 
         int copyPosition = filePosition.getPosition() - distanceCodeOutput.getDistance();
-        for (int i = 0; i < lengthCode.getLength(); i++) {
+        for (int i = 0; i < lengthCode.getLength() + additionalLength; i++) {
             output[filePosition.getPosition()] = output[copyPosition];
+            System.out.print((char)output[copyPosition]);
             copyPosition++;
             filePosition.setPosition(filePosition.getPosition() + 1);
         }
@@ -107,13 +115,15 @@ public class Deflater {
             int distanceCodeInt = bitReader.fromByteArray(distanceCodeBits);
 
             for (DistanceCode distanceCode: codeTreesRepresener.getDistanceCodes()) {
-                if (distanceCode.getCode() == distanceCodeInt &&
-                        codeTreesRepresener.MIN_DISTANCE_CODE_LENGTH + distanceCode.getExtraBits() == bitsNumber) {
+                if (distanceCode.getCode() == distanceCodeInt && distanceCode.getBitsNumber() == bitsNumber) {
                     offset += bitsNumber;
                     distance = distanceCode.getDistance();
+                    byte[] additionalBits = bitReader.getBitsLittleEndian(content, offset, distanceCode.getExtraBits());
+                    int additionalDistance = bitReader.fromByteArray(additionalBits);
+                    offset += distanceCode.getExtraBits();
+                    return new DistanceCodeOutput(offset, distance + additionalDistance);
                 }
             }
-            bitsNumber++;
         }
         return new DistanceCodeOutput(offset, distance);
     }
