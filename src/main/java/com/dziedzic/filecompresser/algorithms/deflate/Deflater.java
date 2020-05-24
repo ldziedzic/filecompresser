@@ -17,13 +17,43 @@ public class Deflater {
 
     private static final int END_OF_BLOCK = 256;
 
-    public byte[] deflate(byte[] content, Long outputSize) {
+    public byte[] compress(byte[] content) {
+        byte[] output = new byte[content.length];
+
+        generateCompressedContent(content, output);
+
+        return output;
+    }
+
+
+    public byte[] decompress(byte[] content, Long outputSize) {
         byte[] output = new byte[Math.toIntExact(outputSize)];
 
         readCompressedContent(content, output, outputSize);
 
         return output;
     }
+
+    private void generateCompressedContent(byte[] content, byte[] output) {
+
+        BitReader bitReader = new BitReader();
+
+        FilePosition filePosition = new FilePosition(0, 0);
+
+        if (content.length < 10)
+            compressWithStaticsHuffmanCodes(content, output);
+        else
+            compressWithDynamicsHuffmanCodes(content, output);
+    }
+
+    private void compressWithStaticsHuffmanCodes(byte[] content, byte[] output) {
+
+    }
+
+    private void compressWithDynamicsHuffmanCodes(byte[] content, byte[] output) {
+
+    }
+
 
     private void readCompressedContent(byte[] content, byte[] output,  Long outputSize) {
 

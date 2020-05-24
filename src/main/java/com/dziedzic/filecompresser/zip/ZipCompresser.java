@@ -48,7 +48,7 @@ public class ZipCompresser {
 
     private void decompressDataUsingDeflate(FileData fileData, byte[] content, String path) {
         Deflater deflater = new Deflater();
-        byte [] output = deflater.deflate(content, fileData.getUncompressedSize());
+        byte [] output = deflater.decompress(content, fileData.getUncompressedSize());
         try {
             String directoryPath = FilenameUtils.removeExtension(path);
             File f = new File(directoryPath);
