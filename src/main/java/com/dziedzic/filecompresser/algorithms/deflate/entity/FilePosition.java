@@ -17,12 +17,20 @@ public class FilePosition {
         return offset;
     }
 
+    public void increaseOffset(int value) {
+        offset += value;
+    }
+
     public void setOffset(int offset) {
         this.offset = offset;
     }
 
     public int getPosition() {
         return position;
+    }
+
+    public void increasePosition(int value) {
+        position += value;
     }
 
     public void setPosition(int position) {

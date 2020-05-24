@@ -35,18 +35,20 @@ public class Deflater {
     }
 
     private void generateCompressedContent(byte[] content, byte[] output) {
-
-        BitReader bitReader = new BitReader();
-
-        FilePosition filePosition = new FilePosition(0, 0);
-
-        if (content.length < 10)
+        if (content.length < 1000)
             compressWithStaticsHuffmanCodes(content, output);
         else
             compressWithDynamicsHuffmanCodes(content, output);
     }
 
     private void compressWithStaticsHuffmanCodes(byte[] content, byte[] output) {
+        BitReader bitReader = new BitReader();
+        FilePosition filePosition = new FilePosition(0, 0);
+
+        bitReader.setBitsLittleEndian(output, filePosition.getPosition(), 1, new byte[] {1});
+        filePosition.increasePosition(1);
+        bitReader.setBitsLittleEndian(output, filePosition.getPosition(), 2, new byte[] {2});
+        filePosition.increasePosition(2);
 
     }
 
@@ -63,7 +65,7 @@ public class Deflater {
 
         while (isNextBlockExists(outputSize, filePosition)) {
             BlockHeader blockHeader = readBlockHeader(bitReader.getBits(content, filePosition.getOffset(), 3)[3]);
-            filePosition.setOffset(filePosition.getOffset() + 3);
+            filePosition.increaseOffset(3);
 
             CodeTreesRepresener codeTreesRepresener = new CodeTreesRepresener(content, blockHeader, filePosition.getOffset());
             codeTreesRepresener.generateCodeTreesRepresentation();
@@ -89,7 +91,7 @@ public class Deflater {
 
             for (HuffmanCodeLengthData huffmanLengthCode: codeTreesRepresener.getHuffmanLengthCodes()) {
                 if (huffmanLengthCode.getHuffmanCode() == codeInt && huffmanLengthCode.getBitsNumber() == bitsNumber) {
-                    filePosition.setOffset(filePosition.getOffset() + bitsNumber);
+                    filePosition.increaseOffset(bitsNumber);
 
 
                     if (huffmanLengthCode.getIndex() < END_OF_BLOCK) {
@@ -112,7 +114,7 @@ public class Deflater {
 
     private void copyByteToOutputStream(byte[] output, FilePosition filePosition, HuffmanCodeLengthData huffmanLengthCode) {
         output[filePosition.getPosition()] = (byte) huffmanLengthCode.getIndex();
-        filePosition.setPosition(filePosition.getPosition() + 1);
+        filePosition.increasePosition(1);
     }
 
     private void CopyMultipleBytesToOutputStream(byte[] content, BitReader bitReader, CodeTreesRepresener codeTreesRepresener, byte[] output, FilePosition filePosition, HuffmanCodeLengthData huffmanLengthCode) {
@@ -120,7 +122,7 @@ public class Deflater {
                 codeTreesRepresener.findLengthCode(huffmanLengthCode.getIndex());
         byte[] additionalBits = bitReader.getBitsLittleEndian(content, filePosition.getOffset(), lengthCode.getExtraBits());
         int additionalLength = bitReader.fromByteArray(additionalBits);
-        filePosition.setOffset(filePosition.getOffset() + lengthCode.getExtraBits());
+        filePosition.increaseOffset(lengthCode.getExtraBits());
         DistanceCodeOutput distanceCodeOutput =
                 getDistance(content, bitReader, codeTreesRepresener, filePosition.getOffset());
         filePosition.setOffset(distanceCodeOutput.getOffset());
@@ -130,7 +132,7 @@ public class Deflater {
             output[filePosition.getPosition()] = output[copyPosition];
             System.out.print((char)output[copyPosition]);
             copyPosition++;
-            filePosition.setPosition(filePosition.getPosition() + 1);
+            filePosition.increasePosition(1);
         }
     }
 
