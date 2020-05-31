@@ -13,14 +13,18 @@ import com.dziedzic.filecompresser.algorithms.deflate.entity.FilePosition;
 import com.dziedzic.filecompresser.algorithms.deflate.entity.HuffmanCodeLengthData;
 import com.dziedzic.filecompresser.algorithms.deflate.entity.LengthCode;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class Deflater {
 
     private static final int END_OF_BLOCK = 256;
+    private static final int MAX_BLOCK_SIZE = 32768;
 
     public byte[] compress(byte[] content) {
-        byte[] output = new byte[content.length];
+        byte[] output = new byte[content.length + 1];
 
-        generateCompressedContent(content, output);
+        output = compressContent(content, output);
 
         return output;
     }
@@ -34,22 +38,61 @@ public class Deflater {
         return output;
     }
 
-    private void generateCompressedContent(byte[] content, byte[] output) {
+    private byte[] compressContent(byte[] content, byte[] output) {
         if (content.length < 1000)
-            compressWithStaticsHuffmanCodes(content, output);
+            return compressWithStaticsHuffmanCodes(content, output);
         else
             compressWithDynamicsHuffmanCodes(content, output);
+        return output;
     }
 
-    private void compressWithStaticsHuffmanCodes(byte[] content, byte[] output) {
+    private byte[] compressWithStaticsHuffmanCodes(byte[] content, byte[] output) {
         BitReader bitReader = new BitReader();
         FilePosition filePosition = new FilePosition(0, 0);
 
-        bitReader.setBitsLittleEndian(output, filePosition.getPosition(), 1, new byte[] {1});
+
+        boolean isLastBlock = false;
+        if (content.length < MAX_BLOCK_SIZE)
+            isLastBlock = true;
+        BlockHeader blockHeader = new BlockHeader(isLastBlock, CompressionType.COMPRESSED_WITH_FIXED_HUFFMAN_CODES);
+
+        CodeTreesRepresener codeTreesRepresener =
+                new CodeTreesRepresener(content, blockHeader, filePosition.getOffset());
+        codeTreesRepresener.generateCodeTreesRepresentation();
+
+        List<HuffmanCodeLengthData> compressedContent = new ArrayList<>();
+        for (int i = 0; i < content.length; i++) {
+            for (HuffmanCodeLengthData huffmanLengthCode: codeTreesRepresener.getHuffmanLengthCodes()) {
+                if (huffmanLengthCode.getIndex() == (int)content[i]) {
+                    compressedContent.add(huffmanLengthCode);
+                }
+            }
+        }
+        for (HuffmanCodeLengthData huffmanLengthCode: codeTreesRepresener.getHuffmanLengthCodes()) {
+            if (huffmanLengthCode.getIndex() == END_OF_BLOCK) {
+                compressedContent.add(huffmanLengthCode);
+            }
+        }
+
+        output = writeBlockHeader(output, filePosition, isLastBlock, blockHeader);
+        for (HuffmanCodeLengthData huffmanLengthCode: compressedContent) {
+            output = bitReader.setBits(output, filePosition.getPosition(), huffmanLengthCode.bitsNumber,
+                    huffmanLengthCode.huffmanCode);
+            filePosition.increasePosition(huffmanLengthCode.bitsNumber);
+        }
+
+        return output;
+    }
+
+    private byte[] writeBlockHeader(byte[] output, FilePosition filePosition, boolean isLastBlock, BlockHeader blockHeader) {
+        BitReader bitReader = new BitReader();
+
+        output = bitReader.setBits(output, filePosition.getPosition(), 1, isLastBlock ? 1 : 0);
         filePosition.increasePosition(1);
-        bitReader.setBitsLittleEndian(output, filePosition.getPosition(), 2, new byte[] {2});
+        output = bitReader.setBits(output, filePosition.getPosition(), 2, blockHeader.getCompressionType().getCompressionTypeCode());
         filePosition.increasePosition(2);
 
+        return output;
     }
 
     private void compressWithDynamicsHuffmanCodes(byte[] content, byte[] output) {
@@ -68,7 +111,7 @@ public class Deflater {
             filePosition.increaseOffset(3);
 
             CodeTreesRepresener codeTreesRepresener = new CodeTreesRepresener(content, blockHeader, filePosition.getOffset());
-            codeTreesRepresener.generateCodeTreesRepresentation();
+            codeTreesRepresener.readCodeTreesRepresentation();
             filePosition.setOffset(codeTreesRepresener.getOffset());
 
             int smallestHuffmanCodeLength = codeTreesRepresener.getSmallestHuffmanLength();

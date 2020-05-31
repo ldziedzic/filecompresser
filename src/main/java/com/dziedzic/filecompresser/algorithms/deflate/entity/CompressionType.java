@@ -20,6 +20,10 @@ public enum CompressionType {
         this.compressionTypeCode = compressionTypeCode;
     }
 
+    public int getCompressionTypeCode() {
+        return compressionTypeCode;
+    }
+
     public static Optional<CompressionType> valueOf(int code) {
         return Arrays.stream(values())
                 .filter(compressionType -> code == compressionType.compressionTypeCode)

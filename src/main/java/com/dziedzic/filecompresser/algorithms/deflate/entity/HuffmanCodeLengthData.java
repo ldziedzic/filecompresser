@@ -16,6 +16,7 @@ public class HuffmanCodeLengthData {
     }
 
     public HuffmanCodeLengthData(int index, int lengthCode, int bitsNumber, int huffmanCode) {
+        this.index = index;
         this.lengthCode = lengthCode;
         this.bitsNumber = bitsNumber;
         this.huffmanCode = huffmanCode;

@@ -39,8 +39,16 @@ public class CodeTreesRepresener {
     }
 
     public void generateCodeTreesRepresentation() {
+        if (blockHeader.getCompressionType() == CompressionType.COMPRESSED_WITH_DYNAMIC_HUFFMAN_CODES) {
+
+        }
+        else if (blockHeader.getCompressionType() == CompressionType.COMPRESSED_WITH_FIXED_HUFFMAN_CODES)
+            generateStaticCodeTreesRepresentation();
+    }
+
+    public void readCodeTreesRepresentation() {
         if (blockHeader.getCompressionType() == CompressionType.COMPRESSED_WITH_DYNAMIC_HUFFMAN_CODES)
-            generateDynamicCodeTreesRepresentation();
+            readDynamicCodeTreesRepresentation();
         else if (blockHeader.getCompressionType() == CompressionType.COMPRESSED_WITH_FIXED_HUFFMAN_CODES)
             generateStaticCodeTreesRepresentation();
     }
@@ -83,7 +91,7 @@ public class CodeTreesRepresener {
         return offset;
     }
 
-    private void generateDynamicCodeTreesRepresentation() {
+    private void readDynamicCodeTreesRepresentation() {
         int alphabetLength = getLiteralLengthAlphabetLength();
         int distanceAlphabetLength = getDistanceAlphabetLength();
         int codeAlphabetLength = getCodeAlphabetLength();
