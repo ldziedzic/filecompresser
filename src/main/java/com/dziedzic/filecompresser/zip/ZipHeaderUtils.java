@@ -20,6 +20,7 @@ import java.util.Optional;
 public class ZipHeaderUtils {
     private static final int FILE_HEADER_SIZE = 30;
     private static final byte[] ZIP_SIGNATURE = {0x50, 0x4b, 0x03, 0x04};
+    private static final byte[] CENTRAL_DIRECTORY_SIGNATURE = {0x50, 0x4b, 0x01, 0x02};
 
     public FileData getLocalFileHeader(byte[] content, int offset) {
         boolean isZip = checkLocalFileHeaderSignature(Arrays.copyOfRange(content, offset, offset + 4));
@@ -46,8 +47,12 @@ public class ZipHeaderUtils {
                 fileHeaderSize);
     }
 
-    private boolean checkLocalFileHeaderSignature(byte[] localFileHeaderSignature) {
+    public boolean checkLocalFileHeaderSignature(byte[] localFileHeaderSignature) {
         return Arrays.equals(ZIP_SIGNATURE, localFileHeaderSignature);
+    }
+
+    public boolean checkCentralDirectoryHeaderSignature(byte[] localFileHeaderSignature) {
+        return Arrays.equals(CENTRAL_DIRECTORY_SIGNATURE, localFileHeaderSignature);
     }
 
     private Flag getFlag(byte[] flag) {

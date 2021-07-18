@@ -24,16 +24,20 @@ public class ZipCompresser {
         int offset = 0;
         ZipHeaderUtils zipHeaderUtils = new ZipHeaderUtils();
         while (isNextFile(content, offset)) {
-            FileData fileData = zipHeaderUtils.getLocalFileHeader(content, offset);
-
-            decompressFile(fileData,
-                    Arrays.copyOfRange(content,
-                            offset + fileData.getFileHeaderSize(),
-                            (int) (offset + fileData.getFileHeaderSize() + fileData.getCompressedSize())), path);
-
-            offset += fileData.getFileDataSize();
+            if (zipHeaderUtils.checkLocalFileHeaderSignature(Arrays.copyOfRange(content, offset, offset + 4))) {
+                FileData fileData = zipHeaderUtils.getLocalFileHeader(content, offset);
+                decompressFile(fileData,
+                        Arrays.copyOfRange(content,
+                                offset + fileData.getFileHeaderSize(),
+                                (int) (offset + fileData.getFileHeaderSize() + fileData.getCompressedSize())), path);
+                offset += fileData.getFileDataSize();
+            }
+            else if (zipHeaderUtils.checkCentralDirectoryHeaderSignature(Arrays.copyOfRange(content, offset, offset + 4))) {
+                System.out.println("All files decompressed");
+                // TODO Get directory information
+                break;
+            }
         }
-
     }
 
     private void decompressFile(FileData fileData, byte[] content, String path) {
@@ -42,7 +46,8 @@ public class ZipCompresser {
                 decompressDataUsingDeflate(fileData, content, path);
                 break;
             case NO_COMPRESSION:
-                writeFile(fileData, path, content);
+                if (!fileData.getFilename().endsWith("/"))
+                    writeFile(fileData, path, content);
             default:
                 break;
         }
