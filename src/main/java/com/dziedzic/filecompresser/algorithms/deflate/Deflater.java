@@ -107,7 +107,7 @@ public class Deflater {
         FilePosition filePosition = new FilePosition(0, 0);
 
         while (isNextBlockExists(outputSize, filePosition)) {
-            BlockHeader blockHeader = readBlockHeader(bitReader.getBits(content, filePosition.getOffset(), 3)[3]);
+            BlockHeader blockHeader = readBlockHeader(bitReader.getBits(content, filePosition.getOffset(), 3));
             filePosition.increaseOffset(3);
 
             CodeTreesRepresener codeTreesRepresener = new CodeTreesRepresener(content, blockHeader, filePosition.getOffset());
@@ -129,16 +129,11 @@ public class Deflater {
         int bitsNumber = smallestHuffmanCodeLength;
 
         while (!endOfBlock) {
-            byte[] code = bitReader.getBits(content, filePosition.getOffset(), bitsNumber);
-            int codeInt = bitReader.fromByteArray(code);
+            int codeInt = bitReader.getBits(content, filePosition.getOffset(), bitsNumber);
 
             for (HuffmanCodeLengthData huffmanLengthCode: codeTreesRepresener.getHuffmanLengthCodes()) {
                 if (huffmanLengthCode.getBitsNumber() == 0)
                     continue;
-                if (huffmanLengthCode.getHuffmanCode() == codeInt) {
-//                    System.out.println(huffmanLengthCode.getIndex());
-                    int temp = codeInt;
-                }
                 if (huffmanLengthCode.getHuffmanCode() == codeInt && huffmanLengthCode.getBitsNumber() == bitsNumber) {
                     filePosition.increaseOffset(bitsNumber);
 
@@ -170,8 +165,7 @@ public class Deflater {
     private void CopyMultipleBytesToOutputStream(byte[] content, BitReader bitReader, CodeTreesRepresener codeTreesRepresener, byte[] output, FilePosition filePosition, HuffmanCodeLengthData huffmanLengthCode) {
         LengthCode lengthCode =
                 codeTreesRepresener.findLengthCode(huffmanLengthCode.getIndex());
-        byte[] additionalBits = bitReader.getBitsLittleEndian(content, filePosition.getOffset(), lengthCode.getExtraBits());
-        int additionalLength = bitReader.fromByteArray(additionalBits);
+        int additionalLength = bitReader.getBitsLittleEndian(content, filePosition.getOffset(), lengthCode.getExtraBits());
         filePosition.increaseOffset(lengthCode.getExtraBits());
         DistanceCodeOutput distanceCodeOutput =
                 getDistance(content, bitReader, codeTreesRepresener, filePosition.getOffset());
@@ -193,15 +187,13 @@ public class Deflater {
         for (int bitsNumber = codeTreesRepresener.MIN_DISTANCE_CODE_LENGTH;
              bitsNumber <= codeTreesRepresener.getBiggestDistanceCodeLength(); bitsNumber++) {
 
-            byte[] distanceCodeBits = bitReader.getBits(content, offset, bitsNumber);
-            int distanceCodeInt = bitReader.fromByteArray(distanceCodeBits);
+            int distanceCodeInt = bitReader.getBits(content, offset, bitsNumber);
 
             for (DistanceCode distanceCode: codeTreesRepresener.getDistanceCodes()) {
                 if (distanceCode.getCode() == distanceCodeInt && distanceCode.getBitsNumber() == bitsNumber) {
                     offset += bitsNumber;
                     distance = distanceCode.getDistance();
-                    byte[] additionalBits = bitReader.getBitsLittleEndian(content, offset, distanceCode.getExtraBits());
-                    int additionalDistance = bitReader.fromByteArray(additionalBits);
+                    int additionalDistance = bitReader.getBitsLittleEndian(content, offset, distanceCode.getExtraBits());
                     offset += distanceCode.getExtraBits();
                     return new DistanceCodeOutput(offset, distance + additionalDistance);
                 }
@@ -210,7 +202,7 @@ public class Deflater {
         return new DistanceCodeOutput(offset, distance);
     }
 
-    private BlockHeader readBlockHeader(byte content) {
+    private BlockHeader readBlockHeader(int content) {
         int isLastBlock = (content & 0x04) >> 2;
         CompressionType compressionType = CompressionType.valueOf((content & 0x03)).orElse(null);
 

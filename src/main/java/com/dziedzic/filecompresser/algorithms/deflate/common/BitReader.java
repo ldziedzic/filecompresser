@@ -14,12 +14,12 @@ import java.util.stream.IntStream;
 public class BitReader {
     private final int BITS_IN_BYTE = 8;
 
-    public byte[] getBits(byte[] content, int offset, int bitsNumber) {
+    public int getBits(byte[] content, int offset, int bitsNumber) {
         if (bitsNumber == 0)
-            return new byte[]{0};
+            return 0;
         BitSet bitSet = BitSet.valueOf(content);
         String bitSetString = getBinaryString(bitSet.get(offset, offset + bitsNumber), bitsNumber);
-        return toByteArray(Integer.parseInt(bitSetString, 2));
+        return Integer.parseInt(bitSetString, 2);
     }
 
 
@@ -61,13 +61,13 @@ public class BitReader {
     }
 
 
-    public byte[] getBitsLittleEndian(byte[] content, int offset, int bitsNumber) {
+    public int getBitsLittleEndian(byte[] content, int offset, int bitsNumber) {
         if (bitsNumber == 0)
-            return new byte[]{0};
+            return 0;
         BitSet bitSet = BitSet.valueOf(content);
         String bitSetString = getBinaryStringFromLitleEndian(bitSet.get(offset, offset + bitsNumber), bitsNumber);
 
-        return toByteArray(Integer.parseInt(bitSetString, 2));
+        return Integer.parseInt(bitSetString, 2);
     }
 
     public byte[] setBitsLittleEndian(byte[] content, int offset, int bitsNumber, int newBitsInt) {
