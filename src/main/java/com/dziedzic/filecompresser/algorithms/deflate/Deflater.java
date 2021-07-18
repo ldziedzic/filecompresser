@@ -131,27 +131,23 @@ public class Deflater {
         while (!endOfBlock) {
             int codeInt = bitReader.getBits(content, filePosition.getOffset(), bitsNumber);
 
-            for (HuffmanCodeLengthData huffmanLengthCode: codeTreesRepresener.getHuffmanLengthCodes()) {
-                if (huffmanLengthCode.getBitsNumber() == 0)
-                    continue;
-                if (huffmanLengthCode.getHuffmanCode() == codeInt && huffmanLengthCode.getBitsNumber() == bitsNumber) {
-                    filePosition.increaseOffset(bitsNumber);
+            HuffmanCodeLengthData huffmanLengthCode = codeTreesRepresener.getHuffmanLengthCode(bitsNumber, codeInt);
 
-
-                    if (huffmanLengthCode.getIndex() < END_OF_BLOCK) {
+            if (huffmanLengthCode != null) {
+                filePosition.increaseOffset(bitsNumber);
+                if (huffmanLengthCode.getIndex() < END_OF_BLOCK) {
 //                        System.out.print((char)huffmanLengthCode.getIndex());
-                        copyByteToOutputStream(output, filePosition, huffmanLengthCode);
-                    }
-                    else if (huffmanLengthCode.getIndex() == END_OF_BLOCK)
-                        endOfBlock = true;
-                    else {
-//                        System.out.println(huffmanLengthCode.getIndex());
-                        CopyMultipleBytesToOutputStream(content, bitReader, codeTreesRepresener, output,
-                                filePosition, huffmanLengthCode);
-                    }
-                    bitsNumber = smallestHuffmanCodeLength - 1;
-                    break;
+                    copyByteToOutputStream(output, filePosition, huffmanLengthCode);
                 }
+                else if (huffmanLengthCode.getIndex() == END_OF_BLOCK)
+                    endOfBlock = true;
+                else {
+//                        System.out.println(huffmanLengthCode.getIndex());
+                    CopyMultipleBytesToOutputStream(content, bitReader, codeTreesRepresener, output,
+                            filePosition, huffmanLengthCode);
+                }
+                bitsNumber = smallestHuffmanCodeLength - 1;
+
             }
             bitsNumber++;
         }
