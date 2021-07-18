@@ -41,6 +41,8 @@ public class ZipCompresser {
             case DEFLATED:
                 decompressDataUsingDeflate(fileData, content, path);
                 break;
+            case NO_COMPRESSION:
+                writeFile(fileData, path, content);
             default:
                 break;
         }
@@ -61,6 +63,10 @@ public class ZipCompresser {
 //        System.out.println("------------------------------------------------------------");
 //        System.out.println(output.length + " " + compressionLength);
 //        System.out.println("------------------------------------------------------------");
+        writeFile(fileData, path, output);
+    }
+
+    private void writeFile(FileData fileData, String path, byte[] output) {
         try {
             String directoryPath = FilenameUtils.removeExtension(path);
             File f = new File(String.valueOf(Paths.get(directoryPath, fileData.getFilename())));
