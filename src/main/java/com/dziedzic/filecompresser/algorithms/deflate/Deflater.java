@@ -133,22 +133,29 @@ public class Deflater {
             int codeInt = bitReader.fromByteArray(code);
 
             for (HuffmanCodeLengthData huffmanLengthCode: codeTreesRepresener.getHuffmanLengthCodes()) {
+                if (huffmanLengthCode.getBitsNumber() == 0)
+                    continue;
+                if (huffmanLengthCode.getHuffmanCode() == codeInt) {
+//                    System.out.println(huffmanLengthCode.getIndex());
+                    int temp = codeInt;
+                }
                 if (huffmanLengthCode.getHuffmanCode() == codeInt && huffmanLengthCode.getBitsNumber() == bitsNumber) {
                     filePosition.increaseOffset(bitsNumber);
 
 
                     if (huffmanLengthCode.getIndex() < END_OF_BLOCK) {
-                        System.out.print((char)huffmanLengthCode.getIndex());
+//                        System.out.print((char)huffmanLengthCode.getIndex());
                         copyByteToOutputStream(output, filePosition, huffmanLengthCode);
                     }
                     else if (huffmanLengthCode.getIndex() == END_OF_BLOCK)
                         endOfBlock = true;
                     else {
-                        //System.out.println(huffmanLengthCode.getIndex());
+//                        System.out.println(huffmanLengthCode.getIndex());
                         CopyMultipleBytesToOutputStream(content, bitReader, codeTreesRepresener, output,
                                 filePosition, huffmanLengthCode);
                     }
                     bitsNumber = smallestHuffmanCodeLength - 1;
+                    break;
                 }
             }
             bitsNumber++;
@@ -173,7 +180,7 @@ public class Deflater {
         int copyPosition = filePosition.getPosition() - distanceCodeOutput.getDistance();
         for (int i = 0; i < lengthCode.getLength() + additionalLength; i++) {
             output[filePosition.getPosition()] = output[copyPosition];
-            System.out.print((char)output[copyPosition]);
+//            System.out.print((char)output[copyPosition]);
             copyPosition++;
             filePosition.increasePosition(1);
         }

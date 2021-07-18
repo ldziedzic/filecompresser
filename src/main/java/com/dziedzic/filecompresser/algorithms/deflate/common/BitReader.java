@@ -9,6 +9,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.stream.IntStream;
 
 public class BitReader {
     private final int BITS_IN_BYTE = 8;
@@ -17,24 +18,56 @@ public class BitReader {
         if (bitsNumber == 0)
             return new byte[]{0};
         BitSet bitSet = BitSet.valueOf(content);
-        byte[] newContent =  rewind(bitSet.get(offset, offset + bitsNumber).toByteArray());
-        if (newContent.length == 0)
-            return new byte[]{0};
-        if (bitsNumber % BITS_IN_BYTE != 0) {
-            int shiftBits = BITS_IN_BYTE - bitsNumber % BITS_IN_BYTE;
-            return toByteArray(fromByteArray(newContent) >>> shiftBits);
-        } else
-            return newContent;
+        String bitSetString = getBinaryString(bitSet.get(offset, offset + bitsNumber), bitsNumber);
+        return toByteArray(Integer.parseInt(bitSetString, 2));
     }
+
+
+    private String getBinaryString(BitSet bitSet, int bitsNumber) {
+        return IntStream
+                .range(0, bitsNumber)
+                .mapToObj(i -> bitSet.get(i) ? '1' : '0')
+                .collect(
+                        () -> new StringBuilder(bitsNumber),
+                        (buffer, characterToAdd) -> buffer.append(characterToAdd),
+                        StringBuilder::append
+                )
+                .toString();
+    }
+
+
+    private String getBinaryStringFromLitleEndian(BitSet bitSet, int bitsNumber) {
+        String binaryString = IntStream
+                .range(0, bitsNumber)
+                .mapToObj(i -> bitSet.get(i) ? '1' : '0')
+                .collect(
+                        () -> new StringBuilder(bitsNumber),
+                        (buffer, characterToAdd) -> buffer.append(characterToAdd),
+                        StringBuilder::append
+                )
+                .toString();
+        for (int i =  0; i < BITS_IN_BYTE - bitsNumber % BITS_IN_BYTE; i++) {
+            binaryString += "0";
+        }
+        int bytesNumer = (bitsNumber + BITS_IN_BYTE - bitsNumber % BITS_IN_BYTE) / BITS_IN_BYTE;
+        String bigEndianString = "";
+        for (int i =  bytesNumer - 1; i >= 0; i--) {
+            StringBuilder nextByte = new StringBuilder();
+            nextByte.append(binaryString.substring(i * BITS_IN_BYTE, (i + 1) * BITS_IN_BYTE)).reverse();
+            bigEndianString += nextByte;
+        }
+
+        return bigEndianString;
+    }
+
 
     public byte[] getBitsLittleEndian(byte[] content, int offset, int bitsNumber) {
         if (bitsNumber == 0)
             return new byte[]{0};
         BitSet bitSet = BitSet.valueOf(content);
-        byte[] newContent =  bitSet.get(offset, offset + bitsNumber).toByteArray();
-        if (newContent.length == 0)
-            return new byte[]{0};
-        return newContent;
+        String bitSetString = getBinaryStringFromLitleEndian(bitSet.get(offset, offset + bitsNumber), bitsNumber);
+
+        return toByteArray(Integer.parseInt(bitSetString, 2));
     }
 
     public byte[] setBitsLittleEndian(byte[] content, int offset, int bitsNumber, int newBitsInt) {

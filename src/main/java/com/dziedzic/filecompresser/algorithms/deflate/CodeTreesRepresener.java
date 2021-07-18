@@ -228,7 +228,7 @@ public class CodeTreesRepresener {
 
     private List<HuffmanCodeLengthData> readHuffmanCodes(int elementsNumber, List<HuffmanCodeLengthData> huffmanCodeLengthDataList) {
         BitReader bitReader = new BitReader();
-        int bitsNumber = 2;
+        int bitsNumber = 1;
         int loadedElements = 0;
         List<HuffmanCodeLengthData> newHuffmanCodeLengthDataList = new ArrayList<>();
 
@@ -254,9 +254,9 @@ public class CodeTreesRepresener {
                             loadedElements = repeatCodeLength(bitReader, loadedElements, newHuffmanCodeLengthDataList, 7, 11, 0);
                         }
 
-                        bitsNumber = 1;
+                        bitsNumber = 0;
                         foundNext = true;
-
+                        break;
                     }
                 }
                 bitsNumber++;

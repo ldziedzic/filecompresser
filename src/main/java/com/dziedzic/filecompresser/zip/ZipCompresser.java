@@ -47,31 +47,33 @@ public class ZipCompresser {
     }
 
     private void decompressDataUsingDeflate(FileData fileData, byte[] content, String path) {
+        System.out.println("Started decompressing " + fileData.getFilename());
         Deflater deflater = new Deflater();
         byte [] output = deflater.decompress(content, fileData.getUncompressedSize());
 
-        System.out.println("------------------------------------------------------------");
-        System.out.println("------------------------------------------------------------");
-        System.out.println(output.length + " " + content.length);
-        System.out.println("------------------------------------------------------------");
 
-        output = deflater.compress(output);
-        int compressionLength = output.length;
-        output = deflater.decompress(output, fileData.getUncompressedSize());
 
-        System.out.println("------------------------------------------------------------");
-        System.out.println("------------------------------------------------------------");
-        System.out.println(output.length + " " + compressionLength);
-        System.out.println("------------------------------------------------------------");
+//        output = deflater.compress(output);
+//        int compressionLength = output.length;
+//        output = deflater.decompress(output, fileData.getUncompressedSize());
+//
+//        System.out.println("------------------------------------------------------------");
+//        System.out.println("------------------------------------------------------------");
+//        System.out.println(output.length + " " + compressionLength);
+//        System.out.println("------------------------------------------------------------");
         try {
             String directoryPath = FilenameUtils.removeExtension(path);
-            File f = new File(directoryPath);
+            File f = new File(String.valueOf(Paths.get(directoryPath, fileData.getFilename())));
 
-            boolean isDirectoryCreated = f.mkdirs();
+            boolean isDirectoryCreated = f.getParentFile().mkdirs();
+
             if (isDirectoryCreated)
                 System.out.println("Created directory " + directoryPath);
             Files.write(Paths.get(directoryPath, fileData.getFilename()), output);
             System.out.println("Successfully decompressed " + fileData.getFilename());
+            System.out.println("------------------------------------------------------------");
+            System.out.println("------------------------------------------------------------");
+            System.out.println("------------------------------------------------------------");
         } catch (IOException e) {
             System.out.println("Failed to decompress " + fileData.getFilename());
             e.printStackTrace();
