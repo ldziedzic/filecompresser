@@ -127,10 +127,16 @@ public class Deflater {
     private void readBlock(byte[] content, BitReader bitReader, CodeTreesRepresener codeTreesRepresener,
                            int smallestHuffmanCodeLength, byte[] output, FilePosition filePosition) {
         boolean endOfBlock = false;
-        int bitsNumber = smallestHuffmanCodeLength;
+        int bitsNumber = codeTreesRepresener.getBiggestHuffmanLength();
+        boolean canReuseBits = false;
+        int codeInt = 0;
 
         while (!endOfBlock) {
-            int codeInt = bitReader.getBits(content, filePosition.getOffset(), bitsNumber);
+            if (!canReuseBits)
+                codeInt = bitReader.getBits(content, filePosition.getOffset(), bitsNumber);
+            else
+                codeInt = codeInt >> 1;
+            canReuseBits = true;
 
             HuffmanCodeLengthData huffmanLengthCode = codeTreesRepresener.getHuffmanLengthCode(bitsNumber, codeInt);
 
@@ -147,10 +153,10 @@ public class Deflater {
                     CopyMultipleBytesToOutputStream(content, bitReader, codeTreesRepresener, output,
                             filePosition, huffmanLengthCode);
                 }
-                bitsNumber = smallestHuffmanCodeLength - 1;
-
+                bitsNumber =  codeTreesRepresener.getBiggestHuffmanLength() +  1;
+                canReuseBits = false;
             }
-            bitsNumber++;
+            bitsNumber--;
             System.out.print(100 * filePosition.getPosition() / output.length + " %\r");
         }
     }

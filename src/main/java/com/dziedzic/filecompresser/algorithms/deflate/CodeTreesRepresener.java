@@ -26,6 +26,7 @@ public class CodeTreesRepresener {
     ArrayList<ArrayList<HuffmanCodeLengthData>> huffmanLengthCodesByBitsNumber;
 
     private int smallestHuffmanLength;
+    private int biggestHuffmanLength;
     private int biggestDistanceCodeLength;
     private byte[] blockContent;
     private BlockHeader blockHeader;
@@ -36,6 +37,7 @@ public class CodeTreesRepresener {
         this.blockHeader = blockHeader;
         this.offset = offset;
         smallestHuffmanLength = 0;
+        biggestHuffmanLength = 0;
         distanceCodes = new ArrayList<>();
         lengthCodes = new ArrayList<>();
         huffmanLengthCodes = new ArrayList<>();
@@ -105,6 +107,7 @@ public class CodeTreesRepresener {
         generateStaticLengthCodes();
         generateStaticHuffmanLengthCodes();
         groupHuffmanLengthCodesByBitsNumber();
+        findBiggestHuffmanLength();
     }
 
     public int getOffset() {
@@ -122,6 +125,7 @@ public class CodeTreesRepresener {
         huffmanLengthCodes = readHuffmanCodes(alphabetLength, huffmanCodeLengthDataList);
         generateDynamicsHuffmanLengthCodes(huffmanLengthCodes);
         findSmallestHuffmanLength();
+        findBiggestHuffmanLength();
 
         List<HuffmanCodeLengthData> distanceHuffmanLengths = readHuffmanCodes(distanceAlphabetLength, huffmanCodeLengthDataList);
         generateDynamicsHuffmanLengthCodes(distanceHuffmanLengths);
@@ -333,6 +337,17 @@ public class CodeTreesRepresener {
         }
     }
 
+
+    private void findBiggestHuffmanLength() {
+        biggestHuffmanLength = 0;
+        for (HuffmanCodeLengthData huffmanCodeLengthData : huffmanLengthCodes) {
+            if (huffmanCodeLengthData.lengthCode == 0)
+                continue;
+            if (huffmanCodeLengthData.bitsNumber > biggestHuffmanLength)
+                biggestHuffmanLength = huffmanCodeLengthData.bitsNumber;
+        }
+    }
+
     private void generateStaticLengthCodes() {
         lengthCodes.add(new LengthCode(	257,0,3));
         lengthCodes.add(new LengthCode(	258,0,4));
@@ -435,5 +450,9 @@ public class CodeTreesRepresener {
         for (int i = 0; i < 8; i++)
                     huffmanLengthCodes.add(new HuffmanCodeLengthData(280 + i, 280 + i, 8, 0b11000000 + i));
         smallestHuffmanLength = 7;
+    }
+
+    public int getBiggestHuffmanLength() {
+        return biggestHuffmanLength;
     }
 }
