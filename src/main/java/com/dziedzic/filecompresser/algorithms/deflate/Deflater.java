@@ -21,6 +21,7 @@ public class Deflater {
 
     private static final int END_OF_BLOCK = 256;
     private static final int MAX_BLOCK_SIZE = 32768;
+    private final int BITS_IN_BYTE = 8;
 
     public byte[] compress(byte[] content) {
         byte[] output = new byte[content.length + 1];
@@ -116,7 +117,12 @@ public class Deflater {
             filePosition.setOffset(codeTreesRepresener.getOffset());
 
             int smallestHuffmanCodeLength = codeTreesRepresener.getSmallestHuffmanLength();
-            readBlock(content, bitReader, codeTreesRepresener, smallestHuffmanCodeLength, output, filePosition);
+            if (blockHeader.getCompressionType() == CompressionType.ERROR)
+                System.out.println("Compression type = ERROR");
+            if (blockHeader.getCompressionType() != CompressionType.NO_COMPRESSION)
+                readBlock(content, bitReader, codeTreesRepresener, smallestHuffmanCodeLength, output, filePosition);
+            else
+                readBlockWithoutCompression(content, bitReader, codeTreesRepresener, smallestHuffmanCodeLength, output, filePosition);
         }
     }
 
@@ -159,6 +165,23 @@ public class Deflater {
             bitsNumber--;
             System.out.print(100 * filePosition.getPosition() / output.length + " %\r");
         }
+    }
+    private void readBlockWithoutCompression(byte[] content, BitReader bitReader, CodeTreesRepresener codeTreesRepresener,
+                                             int smallestHuffmanCodeLength, byte[] output, FilePosition filePosition) {
+        filePosition.increaseOffset(BITS_IN_BYTE - filePosition.getOffset() % BITS_IN_BYTE);
+        int blockSize = bitReader.getBitsLittleEndian(content, filePosition.getOffset(), 2 * BITS_IN_BYTE);
+        filePosition.increaseOffset(2 * BITS_IN_BYTE);
+        int complementSize = bitReader.getBitsLittleEndian(content, filePosition.getOffset(), 2 * BITS_IN_BYTE);
+        filePosition.increaseOffset(2 * BITS_IN_BYTE);
+        if (filePosition.getOffset() % BITS_IN_BYTE != 0)
+            System.out.println("Error - invalid value for offset in block without compression");
+        if (blockSize + complementSize != 65535)
+            System.out.println("Error - invalid value for block size in block without compression");
+        System.arraycopy(content, filePosition.getOffset() / BITS_IN_BYTE, output, filePosition.getPosition(), blockSize);
+        filePosition.increasePosition(blockSize);
+        filePosition.increaseOffset(blockSize * BITS_IN_BYTE);
+
+        System.out.print(100 * filePosition.getPosition() / output.length + " %\r");
     }
 
     private void copyByteToOutputStream(byte[] output, FilePosition filePosition, HuffmanCodeLengthData huffmanLengthCode) {
