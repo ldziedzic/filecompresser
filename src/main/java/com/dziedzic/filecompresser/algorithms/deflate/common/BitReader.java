@@ -17,7 +17,14 @@ public class BitReader {
     public int getBits(byte[] content, int offset, int bitsNumber) {
         if (bitsNumber == 0)
             return 0;
-        BitSet bitSet = BitSet.valueOf(content);
+        int startPosition = offset / BITS_IN_BYTE;
+        int endPosition = offset / BITS_IN_BYTE + (offset % BITS_IN_BYTE + bitsNumber) / BITS_IN_BYTE;
+        if ((offset % BITS_IN_BYTE + bitsNumber) % BITS_IN_BYTE > 0)
+            endPosition++;
+        byte[] neededBytes = Arrays.copyOfRange(content, startPosition, endPosition);
+        BitSet bitSet = BitSet.valueOf(neededBytes);
+
+        offset = offset % BITS_IN_BYTE;
         String bitSetString = getBinaryString(bitSet.get(offset, offset + bitsNumber), bitsNumber);
         return Integer.parseInt(bitSetString, 2);
     }
