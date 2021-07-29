@@ -86,12 +86,17 @@ public class CodeTreesRepresener {
     }
 
     public HuffmanCodeLengthData getHuffmanLengthCode(int bitsNumber, int huffmanCode) {
-        for (HuffmanCodeLengthData huffmanLengthCode: huffmanLengthCodesByBitsNumber.get(bitsNumber)) {
-            if (huffmanLengthCode.getBitsNumber() != bitsNumber)
-                continue;
-            if (huffmanLengthCode.getHuffmanCode() == huffmanCode)
-                return huffmanLengthCode;
-        };
+        try {
+            for (HuffmanCodeLengthData huffmanLengthCode: huffmanLengthCodesByBitsNumber.get(bitsNumber)) {
+                if (huffmanLengthCode.getBitsNumber() != bitsNumber)
+                    continue;
+                if (huffmanLengthCode.getHuffmanCode() == huffmanCode)
+                    return huffmanLengthCode;
+            };
+        } catch (Exception ex) {
+            System.out.println("Error");
+        }
+
         return null;
     }
 
@@ -99,6 +104,7 @@ public class CodeTreesRepresener {
         generateStaticDistanceCodes();
         generateStaticLengthCodes();
         generateStaticHuffmanLengthCodes();
+        groupHuffmanLengthCodesByBitsNumber();
     }
 
     public int getOffset() {
@@ -116,13 +122,13 @@ public class CodeTreesRepresener {
         huffmanLengthCodes = readHuffmanCodes(alphabetLength, huffmanCodeLengthDataList);
         generateDynamicsHuffmanLengthCodes(huffmanLengthCodes);
         findSmallestHuffmanLength();
-        groupHuffmanLengthCodesByBitsNumber();
 
         List<HuffmanCodeLengthData> distanceHuffmanLengths = readHuffmanCodes(distanceAlphabetLength, huffmanCodeLengthDataList);
         generateDynamicsHuffmanLengthCodes(distanceHuffmanLengths);
         generateDynamicsDistanceCodes(distanceHuffmanLengths);
 
         generateStaticLengthCodes();
+        groupHuffmanLengthCodesByBitsNumber();
         return;
     }
 

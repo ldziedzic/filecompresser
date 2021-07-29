@@ -14,6 +14,7 @@ import com.dziedzic.filecompresser.algorithms.deflate.entity.HuffmanCodeLengthDa
 import com.dziedzic.filecompresser.algorithms.deflate.entity.LengthCode;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class Deflater {
@@ -150,6 +151,7 @@ public class Deflater {
 
             }
             bitsNumber++;
+            System.out.print(100 * filePosition.getPosition() / output.length + " %\r");
         }
     }
 
@@ -168,6 +170,13 @@ public class Deflater {
         filePosition.setOffset(distanceCodeOutput.getOffset());
 
         int copyPosition = filePosition.getPosition() - distanceCodeOutput.getDistance();
+
+        if (distanceCodeOutput.getDistance() >= lengthCode.getLength() + additionalLength) {
+            System.arraycopy(output, copyPosition, output, output[filePosition.getPosition()], lengthCode.getLength() + additionalLength);
+            filePosition.increasePosition(lengthCode.getLength() + additionalLength);
+            return;
+        }
+
         for (int i = 0; i < lengthCode.getLength() + additionalLength; i++) {
             output[filePosition.getPosition()] = output[copyPosition];
 //            System.out.print((char)output[copyPosition]);
