@@ -178,8 +178,12 @@ public class Deflater {
         if (blockSize + complementSize != 65535)
             System.out.println("Error - invalid value for block size in block without compression");
         System.arraycopy(content, filePosition.getOffset() / BITS_IN_BYTE, output, filePosition.getPosition(), blockSize);
-        filePosition.increasePosition(blockSize);
-        filePosition.increaseOffset(blockSize * BITS_IN_BYTE);
+
+        for (int i = 0; i < blockSize; i++) {
+            output[filePosition.getPosition()] = content[filePosition.getOffset() / BITS_IN_BYTE];
+            filePosition.increasePosition(1);
+            filePosition.increaseOffset(BITS_IN_BYTE);
+        }
 
         System.out.print(100 * filePosition.getPosition() / output.length + " %\r");
     }
@@ -200,15 +204,9 @@ public class Deflater {
 
         int copyPosition = filePosition.getPosition() - distanceCodeOutput.getDistance();
 
-        if (distanceCodeOutput.getDistance() >= lengthCode.getLength() + additionalLength) {
-            System.arraycopy(output, copyPosition, output, output[filePosition.getPosition()], lengthCode.getLength() + additionalLength);
-            filePosition.increasePosition(lengthCode.getLength() + additionalLength);
-            return;
-        }
 
         for (int i = 0; i < lengthCode.getLength() + additionalLength; i++) {
             output[filePosition.getPosition()] = output[copyPosition];
-//            System.out.print((char)output[copyPosition]);
             copyPosition++;
             filePosition.increasePosition(1);
         }
