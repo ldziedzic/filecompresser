@@ -14,7 +14,6 @@ import com.dziedzic.filecompresser.algorithms.deflate.entity.HuffmanCodeLengthDa
 import com.dziedzic.filecompresser.algorithms.deflate.entity.LengthCode;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class Deflater {
@@ -152,7 +151,7 @@ public class Deflater {
                 else if (huffmanLengthCode.getIndex() == END_OF_BLOCK)
                     endOfBlock = true;
                 else {
-                    CopyMultipleBytesToOutputStream(content, bitReader, codeTreesRepresener, output,
+                    copyMultipleBytesToOutputStream(content, bitReader, codeTreesRepresener, output,
                             filePosition, huffmanLengthCode);
                 }
                 bitsNumber =  codeTreesRepresener.getBiggestHuffmanLength() +  1;
@@ -190,7 +189,7 @@ public class Deflater {
         filePosition.increasePosition(1);
     }
 
-    private void CopyMultipleBytesToOutputStream(byte[] content, BitReader bitReader, CodeTreesRepresener codeTreesRepresener, byte[] output, FilePosition filePosition, HuffmanCodeLengthData huffmanLengthCode) {
+    private void copyMultipleBytesToOutputStream(byte[] content, BitReader bitReader, CodeTreesRepresener codeTreesRepresener, byte[] output, FilePosition filePosition, HuffmanCodeLengthData huffmanLengthCode) {
         LengthCode lengthCode =
                 codeTreesRepresener.findLengthCode(huffmanLengthCode.getIndex());
         int additionalLength = bitReader.getBitsLittleEndian(content, filePosition.getOffset(), lengthCode.getExtraBits());
@@ -211,12 +210,16 @@ public class Deflater {
 
     private DistanceCodeOutput getDistance(byte[] content, BitReader bitReader,
                                            CodeTreesRepresener codeTreesRepresener, Integer offset) {
-
         int distance = 0;
-        for (int bitsNumber = codeTreesRepresener.MIN_DISTANCE_CODE_LENGTH;
-             bitsNumber <= codeTreesRepresener.getBiggestDistanceCodeLength(); bitsNumber++) {
+        int distanceCodeInt = 0;
 
-            int distanceCodeInt = bitReader.getBits(content, offset, bitsNumber);
+        for (int bitsNumber = codeTreesRepresener.getBiggestDistanceCodeLength();
+             bitsNumber >= codeTreesRepresener.MIN_DISTANCE_CODE_LENGTH; bitsNumber--) {
+
+            if (bitsNumber == codeTreesRepresener.getBiggestDistanceCodeLength())
+                distanceCodeInt = bitReader.getBits(content, offset, bitsNumber);
+            else
+                distanceCodeInt = distanceCodeInt >> 1;
 
             for (DistanceCode distanceCode: codeTreesRepresener.getDistanceCodes()) {
                 if (distanceCode.getCode() == distanceCodeInt && distanceCode.getBitsNumber() == bitsNumber) {
