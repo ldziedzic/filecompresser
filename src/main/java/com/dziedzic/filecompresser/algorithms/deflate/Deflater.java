@@ -168,7 +168,8 @@ public class Deflater {
     }
     private void readBlockWithoutCompression(byte[] content, BitReader bitReader, CodeTreesRepresener codeTreesRepresener,
                                              int smallestHuffmanCodeLength, byte[] output, FilePosition filePosition) {
-        filePosition.increaseOffset(BITS_IN_BYTE - filePosition.getOffset() % BITS_IN_BYTE);
+        if (filePosition.getOffset() % BITS_IN_BYTE != 0)
+            filePosition.increaseOffset(BITS_IN_BYTE - filePosition.getOffset() % BITS_IN_BYTE);
         int blockSize = bitReader.getBitsLittleEndian(content, filePosition.getOffset(), 2 * BITS_IN_BYTE);
         filePosition.increaseOffset(2 * BITS_IN_BYTE);
         int complementSize = bitReader.getBitsLittleEndian(content, filePosition.getOffset(), 2 * BITS_IN_BYTE);
