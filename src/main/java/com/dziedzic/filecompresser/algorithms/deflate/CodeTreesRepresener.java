@@ -23,7 +23,7 @@ public class CodeTreesRepresener {
     private List<LengthCode> lengthCodes;
     private List<HuffmanCodeLengthData> huffmanLengthCodes;
 
-    ArrayList<ArrayList<HuffmanCodeLengthData>> huffmanLengthCodesByBitsNumber;
+    private ArrayList<ArrayList<HuffmanCodeLengthData>> huffmanLengthCodesByBitsNumber;
 
     private int smallestHuffmanLength;
     private int biggestHuffmanLength;
@@ -32,7 +32,7 @@ public class CodeTreesRepresener {
     private BlockHeader blockHeader;
     private int offset;
 
-    public CodeTreesRepresener(byte[] blockContent, BlockHeader blockHeader, int offset) {
+    CodeTreesRepresener(byte[] blockContent, BlockHeader blockHeader, int offset) {
         this.blockContent = blockContent;
         this.blockHeader = blockHeader;
         this.offset = offset;
@@ -44,7 +44,7 @@ public class CodeTreesRepresener {
         huffmanLengthCodesByBitsNumber = new ArrayList<>();
     }
 
-    public void generateCodeTreesRepresentation() {
+    void generateCodeTreesRepresentation() {
         if (blockHeader.getCompressionType() == CompressionType.COMPRESSED_WITH_DYNAMIC_HUFFMAN_CODES) {
 
         }
@@ -52,7 +52,7 @@ public class CodeTreesRepresener {
             generateStaticCodeTreesRepresentation();
     }
 
-    public void readCodeTreesRepresentation() {
+    void readCodeTreesRepresentation() {
         if (blockHeader.getCompressionType() == CompressionType.COMPRESSED_WITH_DYNAMIC_HUFFMAN_CODES)
             readDynamicCodeTreesRepresentation();
         else if (blockHeader.getCompressionType() == CompressionType.COMPRESSED_WITH_FIXED_HUFFMAN_CODES)
@@ -63,11 +63,11 @@ public class CodeTreesRepresener {
         return smallestHuffmanLength;
     }
 
-    public int getBiggestDistanceCodeLength() {
+    int getBiggestDistanceCodeLength() {
         return biggestDistanceCodeLength;
     }
 
-    public List<DistanceCode> getDistanceCodes() {
+    List<DistanceCode> getDistanceCodes() {
         return distanceCodes;
     }
 
@@ -75,7 +75,7 @@ public class CodeTreesRepresener {
         return lengthCodes;
     }
 
-    public LengthCode findLengthCode(int code) {
+    LengthCode findLengthCode(int code) {
         for (LengthCode lengthCode : lengthCodes) {
             if (lengthCode.getCode() == code)
                 return lengthCode;
@@ -83,11 +83,11 @@ public class CodeTreesRepresener {
         return null;
     }
 
-    public List<HuffmanCodeLengthData> getHuffmanLengthCodes() {
+    List<HuffmanCodeLengthData> getHuffmanLengthCodes() {
         return huffmanLengthCodes;
     }
 
-    public HuffmanCodeLengthData getHuffmanLengthCode(int bitsNumber, int huffmanCode) {
+    HuffmanCodeLengthData getHuffmanLengthCode(int bitsNumber, int huffmanCode) {
         try {
             for (HuffmanCodeLengthData huffmanLengthCode: huffmanLengthCodesByBitsNumber.get(bitsNumber)) {
                 if (huffmanLengthCode.getBitsNumber() != bitsNumber)
@@ -133,7 +133,6 @@ public class CodeTreesRepresener {
 
         generateStaticLengthCodes();
         groupHuffmanLengthCodesByBitsNumber();
-        return;
     }
 
 
@@ -452,7 +451,7 @@ public class CodeTreesRepresener {
         smallestHuffmanLength = 7;
     }
 
-    public int getBiggestHuffmanLength() {
+    int getBiggestHuffmanLength() {
         return biggestHuffmanLength;
     }
 }

@@ -103,9 +103,7 @@ public class Deflater {
 
 
     private void readCompressedContent(byte[] content, byte[] output,  Long outputSize) {
-
         BitReader bitReader = new BitReader();
-
         FilePosition filePosition = new FilePosition(0, 0);
 
         while (isNextBlockExists(outputSize, filePosition)) {
@@ -116,13 +114,13 @@ public class Deflater {
             codeTreesRepresener.readCodeTreesRepresentation();
             filePosition.setOffset(codeTreesRepresener.getOffset());
 
-            int smallestHuffmanCodeLength = codeTreesRepresener.getSmallestHuffmanLength();
-            if (blockHeader.getCompressionType() == CompressionType.ERROR)
-                System.out.println("Compression type = ERROR");
+            if (blockHeader.getCompressionType() == CompressionType.ERROR) {
+                throw new RuntimeException("Compression type = ERROR");
+            }
             if (blockHeader.getCompressionType() != CompressionType.NO_COMPRESSION)
-                readBlock(content, bitReader, codeTreesRepresener, smallestHuffmanCodeLength, output, filePosition);
+                readBlock(content, bitReader, codeTreesRepresener, output, filePosition);
             else
-                readBlockWithoutCompression(content, bitReader, codeTreesRepresener, smallestHuffmanCodeLength, output, filePosition);
+                readBlockWithoutCompression(content, bitReader, output, filePosition);
         }
     }
 
@@ -131,7 +129,7 @@ public class Deflater {
     }
 
     private void readBlock(byte[] content, BitReader bitReader, CodeTreesRepresener codeTreesRepresener,
-                           int smallestHuffmanCodeLength, byte[] output, FilePosition filePosition) {
+                           byte[] output, FilePosition filePosition) {
         boolean endOfBlock = false;
         int bitsNumber = codeTreesRepresener.getBiggestHuffmanLength();
         boolean canReuseBits = false;
@@ -149,13 +147,11 @@ public class Deflater {
             if (huffmanLengthCode != null) {
                 filePosition.increaseOffset(bitsNumber);
                 if (huffmanLengthCode.getIndex() < END_OF_BLOCK) {
-//                        System.out.print((char)huffmanLengthCode.getIndex());
                     copyByteToOutputStream(output, filePosition, huffmanLengthCode);
                 }
                 else if (huffmanLengthCode.getIndex() == END_OF_BLOCK)
                     endOfBlock = true;
                 else {
-//                        System.out.println(huffmanLengthCode.getIndex());
                     CopyMultipleBytesToOutputStream(content, bitReader, codeTreesRepresener, output,
                             filePosition, huffmanLengthCode);
                 }
@@ -166,8 +162,8 @@ public class Deflater {
             System.out.print(100 * filePosition.getPosition() / output.length + " %\r");
         }
     }
-    private void readBlockWithoutCompression(byte[] content, BitReader bitReader, CodeTreesRepresener codeTreesRepresener,
-                                             int smallestHuffmanCodeLength, byte[] output, FilePosition filePosition) {
+    private void readBlockWithoutCompression(byte[] content, BitReader bitReader,
+                                             byte[] output, FilePosition filePosition) {
         if (filePosition.getOffset() % BITS_IN_BYTE != 0)
             filePosition.increaseOffset(BITS_IN_BYTE - filePosition.getOffset() % BITS_IN_BYTE);
         int blockSize = bitReader.getBitsLittleEndian(content, filePosition.getOffset(), 2 * BITS_IN_BYTE);
