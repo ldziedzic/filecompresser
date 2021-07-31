@@ -24,6 +24,7 @@ public class CodeTreesRepresener {
     private List<HuffmanCodeLengthData> huffmanLengthCodes;
 
     private ArrayList<ArrayList<HuffmanCodeLengthData>> huffmanLengthCodesByBitsNumber;
+    private ArrayList<ArrayList<DistanceCode>> distanceCodesByBitsNumber;
 
     private int smallestHuffmanLength;
     private int biggestHuffmanLength;
@@ -42,6 +43,7 @@ public class CodeTreesRepresener {
         lengthCodes = new ArrayList<>();
         huffmanLengthCodes = new ArrayList<>();
         huffmanLengthCodesByBitsNumber = new ArrayList<>();
+        distanceCodesByBitsNumber = new ArrayList<>();
     }
 
     void generateCodeTreesRepresentation() {
@@ -71,9 +73,6 @@ public class CodeTreesRepresener {
         return distanceCodes;
     }
 
-    public List<LengthCode> getLengthCodes() {
-        return lengthCodes;
-    }
 
     LengthCode findLengthCode(int code) {
         for (LengthCode lengthCode : lengthCodes) {
@@ -96,9 +95,22 @@ public class CodeTreesRepresener {
                     return huffmanLengthCode;
             };
         } catch (Exception ex) {
-            System.out.println("Error");
+            throw new RuntimeException("Error - failed to get HuffmanLengthCode");
         }
+        return null;
+    }
 
+    DistanceCode getDistanceCode(int bitsNumber, int huffmanCode) {
+        try {
+            for (DistanceCode distanceCode: distanceCodesByBitsNumber.get(bitsNumber)) {
+                if (distanceCode.getBitsNumber() != bitsNumber)
+                    continue;
+                if (distanceCode.getCode() == huffmanCode)
+                    return distanceCode;
+            };
+        } catch (Exception ex) {
+            throw new RuntimeException("Error - failed to get DistanceCode");
+        }
         return null;
     }
 
@@ -107,6 +119,7 @@ public class CodeTreesRepresener {
         generateStaticLengthCodes();
         generateStaticHuffmanLengthCodes();
         groupHuffmanLengthCodesByBitsNumber();
+        groupDistanceCodesByBitsNumber();
         findBiggestHuffmanLength();
     }
 
@@ -133,6 +146,22 @@ public class CodeTreesRepresener {
 
         generateStaticLengthCodes();
         groupHuffmanLengthCodesByBitsNumber();
+        groupDistanceCodesByBitsNumber();
+    }
+
+
+    private void groupDistanceCodesByBitsNumber() {
+        int maxBitsNumber = 0;
+        for (DistanceCode distanceCode : distanceCodes) {
+            if (distanceCode.getBitsNumber() > maxBitsNumber)
+                maxBitsNumber = distanceCode.getBitsNumber();
+        }
+        for (int i = 0; i <= maxBitsNumber; i++) {
+            distanceCodesByBitsNumber.add(new ArrayList<>());
+        }
+        for (DistanceCode distanceCode : distanceCodes) {
+            distanceCodesByBitsNumber.get(distanceCode.getBitsNumber()).add(distanceCode);
+        }
     }
 
 
@@ -399,7 +428,7 @@ public class CodeTreesRepresener {
     private void generateStaticDistanceCodes() {
         distanceCodes = getStaticDistanceCodes();
 
-        biggestDistanceCodeLength = 18;
+        biggestDistanceCodeLength = 5;
     }
 
     private List<DistanceCode> getStaticDistanceCodes() {

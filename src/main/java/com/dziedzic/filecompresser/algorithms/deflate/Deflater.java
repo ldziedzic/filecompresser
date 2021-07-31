@@ -221,14 +221,14 @@ public class Deflater {
             else
                 distanceCodeInt = distanceCodeInt >> 1;
 
-            for (DistanceCode distanceCode: codeTreesRepresener.getDistanceCodes()) {
-                if (distanceCode.getCode() == distanceCodeInt && distanceCode.getBitsNumber() == bitsNumber) {
-                    offset += bitsNumber;
-                    distance = distanceCode.getDistance();
-                    int additionalDistance = bitReader.getBitsLittleEndian(content, offset, distanceCode.getExtraBits());
-                    offset += distanceCode.getExtraBits();
-                    return new DistanceCodeOutput(offset, distance + additionalDistance);
-                }
+            DistanceCode distanceCode = codeTreesRepresener.getDistanceCode(bitsNumber, distanceCodeInt);
+
+            if (distanceCode != null) {
+                offset += bitsNumber;
+                distance = distanceCode.getDistance();
+                int additionalDistance = bitReader.getBitsLittleEndian(content, offset, distanceCode.getExtraBits());
+                offset += distanceCode.getExtraBits();
+                return new DistanceCodeOutput(offset, distance + additionalDistance);
             }
         }
         return new DistanceCodeOutput(offset, distance);
