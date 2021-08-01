@@ -9,7 +9,6 @@ import org.apache.commons.lang3.ArrayUtils;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.stream.IntStream;
 
 public class BitReader {
     private final int BITS_IN_BYTE = 8;
@@ -48,44 +47,42 @@ public class BitReader {
 
 
     private String getBinaryString(BitSet bitSet, int bitsNumber) {
-        return IntStream
-                .range(0, bitsNumber)
-                .mapToObj(i -> bitSet.get(i) ? '1' : '0')
-                .collect(
-                        () -> new StringBuilder(bitsNumber),
-                        (buffer, characterToAdd) -> buffer.append(characterToAdd),
-                        StringBuilder::append
-                )
-                .toString();
+        char[] bitsChars = new char[bitsNumber];
+        Arrays.fill(bitsChars, '0');
+
+        for (int i = 0; i < bitsNumber; i++) {
+            if (bitSet.get(i)){
+                bitsChars[i] = '1';
+            }
+        }
+        return new String(bitsChars);
     }
 
 
     private String getBinaryStringFromLitleEndian(BitSet bitSet, int bitsNumber) {
-        String binaryString = IntStream
-                .range(0, bitsNumber)
-                .mapToObj(i -> bitSet.get(i) ? '1' : '0')
-                .collect(
-                        () -> new StringBuilder(bitsNumber),
-                        (buffer, characterToAdd) -> buffer.append(characterToAdd),
-                        StringBuilder::append
-                )
-                .toString();
-        for (int i =  0; i < BITS_IN_BYTE - bitsNumber % BITS_IN_BYTE; i++) {
-            binaryString += "0";
+        int additionalBits = BITS_IN_BYTE - bitsNumber % BITS_IN_BYTE;
+        char[] bitsChars = new char[bitsNumber + additionalBits];
+        Arrays.fill(bitsChars, '0');
+
+        for (int i = 0; i < bitsNumber + additionalBits; i++) {
+            if (bitSet.get(i)){
+                bitsChars[i] = '1';
+            }
         }
+        String binaryString = new String(bitsChars);
         int bytesNumer = (bitsNumber + BITS_IN_BYTE - bitsNumber % BITS_IN_BYTE) / BITS_IN_BYTE;
-        String bigEndianString = "";
+        StringBuilder bigEndianString = new StringBuilder();
         for (int i =  bytesNumer - 1; i >= 0; i--) {
             StringBuilder nextByte = new StringBuilder();
-            nextByte.append(binaryString.substring(i * BITS_IN_BYTE, (i + 1) * BITS_IN_BYTE)).reverse();
-            bigEndianString += nextByte;
+            nextByte.append(binaryString, i * BITS_IN_BYTE, (i + 1) * BITS_IN_BYTE).reverse();
+            bigEndianString.append(nextByte);
         }
 
-        return bigEndianString;
+        return bigEndianString.toString();
     }
 
 
-    public byte[] setBitsLittleEndian(byte[] content, int offset, int bitsNumber, int newBitsInt) {
+    byte[] setBitsLittleEndian(byte[] content, int offset, int bitsNumber, int newBitsInt) {
         int contentLength = content.length;
 //        int shiftBits = BITS_IN_BYTE - bitsNumber % BITS_IN_BYTE;
 //        return toByteArray(fromByteArray(newContent) >>> shiftBits);
@@ -99,7 +96,6 @@ public class BitReader {
         byte[] partOfContent =  bitSet.get(offset, offset + bitsNumber).toByteArray();
         if (partOfContent.length == 0)
             partOfContent =  new byte[((bitsNumber - 1) / BITS_IN_BYTE) + 1];
-
 
         for (int i = 0; i < partOfContent.length; i++) {
             partOfContent[i] |= newBits[i];
@@ -229,26 +225,7 @@ public class BitReader {
     }
 
 
-    public byte[] toByteArray(int value) {
+    private byte[] toByteArray(int value) {
         return  ByteBuffer.allocate(4).putInt(value).array();
-    }
-
-    public int fromByteArray(byte[] bytes) {
-        if (bytes.length == 0)
-            return 0;
-        if (bytes.length > 4)
-            throw new IndexOutOfBoundsException("Failed to convert bytes array to int");
-        byte[] byteArray = new byte[Integer.BYTES];
-
-        int i = Integer.BYTES - bytes.length;
-        try {
-            for (byte item: bytes) {
-                byteArray[i] = item;
-                i++;
-            }
-        } catch (Exception ex) {
-            System.out.println(bytes);
-        }
-        return ByteBuffer.wrap(byteArray).getInt();
     }
 }

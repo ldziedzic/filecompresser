@@ -154,11 +154,12 @@ public class Deflater {
                     copyMultipleBytesToOutputStream(content, bitReader, codeTreesRepresener, output,
                             filePosition, huffmanLengthCode);
                 }
-                bitsNumber =  codeTreesRepresener.getBiggestHuffmanLength() +  1;
+                bitsNumber =  codeTreesRepresener.getBiggestHuffmanLength();
                 canReuseBits = false;
+                continue;
             }
             bitsNumber--;
-            System.out.print(100 * filePosition.getPosition() / output.length + " %\r");
+//            System.out.print(100 * filePosition.getPosition() / output.length + " %\r");
         }
     }
     private void readBlockWithoutCompression(byte[] content, BitReader bitReader,
@@ -181,7 +182,7 @@ public class Deflater {
             filePosition.increaseOffset(BITS_IN_BYTE);
         }
 
-        System.out.print(100 * filePosition.getPosition() / output.length + " %\r");
+//        System.out.print(100 * filePosition.getPosition() / output.length + " %\r");
     }
 
     private void copyByteToOutputStream(byte[] output, FilePosition filePosition, HuffmanCodeLengthData huffmanLengthCode) {
