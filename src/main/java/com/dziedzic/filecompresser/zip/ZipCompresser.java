@@ -8,6 +8,7 @@ package com.dziedzic.filecompresser.zip;
 
 import com.dziedzic.filecompresser.algorithms.deflate.Deflater;
 import com.dziedzic.filecompresser.zip.Entity.FileData;
+import com.dziedzic.filecompresser.zip.Entity.ZipDecompresser;
 import org.apache.commons.io.FilenameUtils;
 
 import java.io.File;
@@ -54,21 +55,12 @@ public class ZipCompresser {
     }
 
     private void decompressDataUsingDeflate(FileData fileData, byte[] content, String path) {
-        System.out.println("Started decompressing " + fileData.getFilename());
-        Deflater deflater = new Deflater();
-        byte [] output = deflater.decompress(content, fileData.getUncompressedSize());
-
-
-
-//        output = deflater.compress(output);
-//        int compressionLength = output.length;
-//        output = deflater.decompress(output, fileData.getUncompressedSize());
-//
-//        System.out.println("------------------------------------------------------------");
-//        System.out.println("------------------------------------------------------------");
-//        System.out.println(output.length + " " + compressionLength);
-//        System.out.println("------------------------------------------------------------");
-        writeFile(fileData, path, output);
+//        System.out.println("Started decompressing " + fileData.getFilename());
+//        Deflater deflater = new Deflater();
+//        byte [] output = deflater.decompress(content, fileData.getUncompressedSize());
+//        writeFile(fileData, path, output);
+        ZipDecompresser zipDecompresser = new ZipDecompresser(fileData, content, path);
+        zipDecompresser.start();
     }
 
     private void writeFile(FileData fileData, String path, byte[] output) {

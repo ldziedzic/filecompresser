@@ -3,6 +3,8 @@ package com.dziedzic.filecompresser.algorithms.deflate.common;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Assertions.*;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 import static org.junit.Assert.assertEquals;
 
 /*
@@ -86,7 +88,21 @@ import static org.junit.Assert.assertEquals;
         assertEquals(output[1], (byte)-57);
     }
 
+    @Test
+    void testSetBitsBigEndian_RandomValue() {
+        BitReader bitReader = new BitReader();
 
+        byte[] output = new byte[4];
+        int offset = 0;
+        int bitsNumber = 20;
+        for (int i = 0; i < 1000; i++) {
+            int newContent = ThreadLocalRandom.current().nextInt(10000, 1000000);
+
+            output = bitReader.setBits(output, offset, bitsNumber, newContent);
+
+            assertEquals(newContent, bitReader.getBits(output, offset, bitsNumber));
+        }
+    }
 
 
 
@@ -182,4 +198,6 @@ import static org.junit.Assert.assertEquals;
         assertEquals(output[1], (byte)-64);
         assertEquals(output[2], (byte)56);
     }
+
+
 }
