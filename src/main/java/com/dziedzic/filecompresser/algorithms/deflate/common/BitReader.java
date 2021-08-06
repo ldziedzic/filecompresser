@@ -37,6 +37,109 @@ public class BitReader {
         return Integer.parseInt(bitSetString, 2);
     }
 
+    public byte[] setBits(byte[] content, int offset, int bitsNumber, int newBitsInt) {
+        String binaryString = Integer.toBinaryString(newBitsInt);
+
+        int bytesNumer = (offset + bitsNumber + BITS_IN_BYTE - bitsNumber % BITS_IN_BYTE) / BITS_IN_BYTE;
+        if ((offset + bitsNumber + BITS_IN_BYTE - bitsNumber % BITS_IN_BYTE) % BITS_IN_BYTE != 0) {
+            bytesNumer++;
+        }
+        int additionalBits = offset % BITS_IN_BYTE + bitsNumber - binaryString.length();
+        int shiftBits = bytesNumer * BITS_IN_BYTE - binaryString.length() - additionalBits;
+
+        char[] additionalBitsChars = new char[additionalBits];
+        Arrays.fill(additionalBitsChars, '0');
+        char[] shiftBitsChars = new char[shiftBits];
+        Arrays.fill(shiftBitsChars, '0');
+        binaryString = new String(additionalBitsChars) + binaryString + new String(shiftBitsChars);
+
+        StringBuilder bigEndianString = new StringBuilder();
+        for (int i =  0; i < bytesNumer; i++) {
+            StringBuilder nextByte = new StringBuilder();
+            nextByte.append(binaryString, i * BITS_IN_BYTE, (i + 1) * BITS_IN_BYTE).reverse();
+            bigEndianString.append(nextByte);
+        }
+
+        binaryString =  bigEndianString.toString();
+
+        BitSet bitset = new BitSet(binaryString.length());
+        int len = binaryString.length();
+        for (int i = len-1; i >= 0; i--) {
+            if (binaryString.charAt(i) == '1') {
+                bitset.set(len-i-1);
+            }
+        }
+
+        byte[] bytes = toByteArray(bitset);
+        for (int i = 0; i < bytes.length; i++) {
+            content[offset / BITS_IN_BYTE + additionalBits / BITS_IN_BYTE + i] = (byte) (content[offset / BITS_IN_BYTE + additionalBits / BITS_IN_BYTE + i] | bytes[i]);
+        }
+        return content;
+    }
+
+
+    byte[] setBitsLittleEndian(byte[] content, int offset, int bitsNumber, int newBitsInt) {
+        String binaryString = Integer.toBinaryString(newBitsInt << (offset % BITS_IN_BYTE));
+
+        int bytesNumer = (bitsNumber + BITS_IN_BYTE - (offset +bitsNumber) % BITS_IN_BYTE) / BITS_IN_BYTE;
+        if ((offset + bitsNumber + BITS_IN_BYTE - bitsNumber % BITS_IN_BYTE) % BITS_IN_BYTE != 0) {
+            bytesNumer++;
+        }
+
+        int shiftBits = bytesNumer * BITS_IN_BYTE - binaryString.length();
+
+        char[] shiftBitsChars = new char[shiftBits];
+        Arrays.fill(shiftBitsChars, '0');
+        binaryString = new String(shiftBitsChars) +  binaryString;
+
+        StringBuilder littleEndianString = new StringBuilder();
+
+        for (int i =  0; i < binaryString.length() / BITS_IN_BYTE; i++) {
+            StringBuilder nextByte = new StringBuilder();
+            nextByte.append(binaryString, i * BITS_IN_BYTE, (i + 1) * BITS_IN_BYTE).reverse();
+            littleEndianString.append(nextByte);
+        }
+
+        binaryString =  littleEndianString.reverse().toString();
+
+        BitSet bitset = new BitSet(binaryString.length());
+        int len = binaryString.length();
+        for (int i = len-1; i >= 0; i--) {
+            if (binaryString.charAt(i) == '1') {
+                bitset.set(len-i-1);
+            }
+        }
+
+        byte[] bytes = toByteArray(bitset);
+        int additionalOffset = 0;
+        for (int i =  0; i < binaryString.length(); i++) {
+            if (binaryString.charAt(i) == '0') {
+                additionalOffset += 1;
+            } else {
+                break;
+            }
+        }
+        additionalOffset = additionalOffset / BITS_IN_BYTE;
+        for (int i = 0; i < bytes.length; i++) {
+            content[offset / BITS_IN_BYTE + additionalOffset+ i] = (byte) (content[offset / BITS_IN_BYTE + additionalOffset + i] | bytes[i]);
+        }
+        return content;
+    }
+
+
+
+    private static byte[] toByteArray(BitSet bits) {
+        byte[] bytes = new byte[(bits.length() + 7) / 8];
+
+        for (int i=0; i<bits.length(); i++) {
+            if (bits.get(i)) {
+                bytes[bytes.length-i/8-1] |= 1<<(i%8);
+            }
+        }
+        return bytes;
+    }
+
+
     private byte[] getNeededBytes(byte[] content, int offset, int bitsNumber) {
         int startPosition = offset / BITS_IN_BYTE;
         int endPosition = offset / BITS_IN_BYTE + (offset % BITS_IN_BYTE + bitsNumber) / BITS_IN_BYTE;
@@ -79,153 +182,5 @@ public class BitReader {
         }
 
         return bigEndianString.toString();
-    }
-
-
-    byte[] setBitsLittleEndian(byte[] content, int offset, int bitsNumber, int newBitsInt) {
-        int contentLength = content.length;
-//        int shiftBits = BITS_IN_BYTE - bitsNumber % BITS_IN_BYTE;
-//        return toByteArray(fromByteArray(newContent) >>> shiftBits);
-        byte[] newBits = toByteArray(newBitsInt);
-        newBits = Arrays.copyOfRange(newBits, newBits.length - (bitsNumber - 1) / BITS_IN_BYTE - 1, newBits.length);
-//        byte[] newBits = rewind(toByteArray(newBitsInt));
-        if (bitsNumber == 0 || bitsNumber > 4 * BITS_IN_BYTE)
-            return newBits;
-
-        BitSet bitSet = BitSet.valueOf(content);
-        byte[] partOfContent =  bitSet.get(offset, offset + bitsNumber).toByteArray();
-        if (partOfContent.length == 0)
-            partOfContent =  new byte[((bitsNumber - 1) / BITS_IN_BYTE) + 1];
-
-        for (int i = 0; i < partOfContent.length; i++) {
-            partOfContent[i] |= newBits[i];
-        }
-        BitSet updatedPartOfContent = BitSet.valueOf(partOfContent);
-
-        for (int i = updatedPartOfContent.nextSetBit(0); i >= 0; i = updatedPartOfContent.nextSetBit(i+1)) {
-            bitSet.set(i + offset);
-        }
-        byte[] updatedContent = bitSet.toByteArray();
-        content = ArrayUtils.addAll(updatedContent, new byte[contentLength - updatedContent.length]);
-        return content;
-    }
-
-
-    public byte[] setBits(byte[] content, int offset, int bitsNumber, int newBitsInt) {
-        int contentLength = content.length;
-        int shiftBits = (BITS_IN_BYTE - bitsNumber % BITS_IN_BYTE) % BITS_IN_BYTE;
-//        return toByteArray(fromByteArray(newContent) >>> shiftBits);
-        byte[] newBits = rewind(toByteArray(newBitsInt << shiftBits));
-        newBits = Arrays.copyOfRange(newBits, newBits.length - (bitsNumber - 1) / BITS_IN_BYTE - 1, newBits.length);
-//        byte[] newBits = rewind(toByteArray(newBitsInt));
-        if (bitsNumber == 0 || bitsNumber > 4 * BITS_IN_BYTE)
-            return newBits;
-
-        BitSet bitSet = BitSet.valueOf(content);
-        byte[] partOfContent =  bitSet.get(offset, offset + bitsNumber).toByteArray();
-        if (partOfContent.length == 0)
-            partOfContent =  new byte[((bitsNumber - 1) / BITS_IN_BYTE) + 1];
-
-
-        for (int i = 0; i < partOfContent.length; i++) {
-            partOfContent[i] |= newBits[i];
-        }
-        BitSet updatedPartOfContent = BitSet.valueOf(partOfContent);
-
-        for (int i = updatedPartOfContent.nextSetBit(0); i >= 0; i = updatedPartOfContent.nextSetBit(i+1)) {
-            bitSet.set(i + offset);
-        }
-        byte[] updatedContent = bitSet.toByteArray();
-        content = ArrayUtils.addAll(updatedContent, new byte[contentLength - updatedContent.length]);
-        return content;
-    }
-
-
-//    public void setBits(byte[] content, int offset, int bitsNumber, int newBitsInt) {
-//        byte [] newBits = toByteArray(newBitsInt);
-//        if (bitsNumber == 0 || bitsNumber > 4 * BITS_IN_BYTE)
-//            return;
-//        int startByte = offset / BITS_IN_BYTE;
-//        int endByte = (offset + bitsNumber) / BITS_IN_BYTE + 1;
-//
-//        int newBitsLength = (bitsNumber / BITS_IN_BYTE) + (bitsNumber % BITS_IN_BYTE > 0 ? 1: 0);
-////        if (bitsNumber % BITS_IN_BYTE != 0) {
-////            int shiftBits = BITS_IN_BYTE - bitsNumber % BITS_IN_BYTE;
-////
-////            newBits = Arrays.copyOfRange(toByteArray(fromByteArray(newBits) << shiftBits), Integer.BYTES - newBitsLength, Integer.BYTES);
-////        } else
-////            newBits = Arrays.copyOfRange(newBits, Integer.BYTES - newBitsLength, Integer.BYTES);
-//
-//        newBits = Arrays.copyOfRange(newBits, Integer.BYTES - newBitsLength, Integer.BYTES);
-//
-//        byte[] exetndedNewBits = toByteArray(fromByteArray(ArrayUtils.addAll(newBits, new byte[]{0})) >> offset % BITS_IN_BYTE);
-//        exetndedNewBits = Arrays.copyOfRange(exetndedNewBits, exetndedNewBits.length - newBits.length - 1, exetndedNewBits.length);
-//
-//        try {
-//            for (int i = startByte; i < endByte; i++) {
-//                content[(offset / 8) + i] = (byte) (content[(offset / 8) + i] | exetndedNewBits[i - startByte]);
-//
-//            }
-//        } catch (Exception ex) {
-//            System.out.println(Arrays.toString(newBits));
-//        }
-//
-////        BitSet contentBitSet = BitSet.valueOf(rewind(Arrays.copyOfRange(content, startByte, endByte)));
-////        BitSet newContentBitSet = BitSet.valueOf(newBits);
-////
-////        saveBits(content, offset, startByte, endByte, contentBitSet, newContentBitSet);
-//    }
-
-
-//    public void setBitsLittleEndian(byte[] content, int offset, int bitsNumber, int newBitsInt) {
-//        byte [] newBits = rewind(toByteArray(newBitsInt));
-//        if (bitsNumber == 0 || bitsNumber > 4 * BITS_IN_BYTE)
-//            return;
-//        int startByte = offset / BITS_IN_BYTE;
-//        int endByte = (offset + bitsNumber) / BITS_IN_BYTE + 1;
-//
-//        int newBitsLength = (bitsNumber / BITS_IN_BYTE) + (bitsNumber % BITS_IN_BYTE > 0 ? 1: 0);
-//        if (bitsNumber % BITS_IN_BYTE != 0) {
-//            int shiftBits = BITS_IN_BYTE - bitsNumber % BITS_IN_BYTE;
-//
-//            newBits = Arrays.copyOfRange(toByteArray(fromByteArray(newBits) >>> shiftBits), Integer.BYTES - newBitsLength, Integer.BYTES);
-//        } else
-//            newBits = Arrays.copyOfRange(newBits, Integer.BYTES - newBitsLength, Integer.BYTES);
-////        newBits = Arrays.copyOfRange(newBits, Integer.BYTES - newBitsLength, Integer.BYTES);
-//
-//        byte[] exetndedNewBits = toByteArray(fromByteArray(ArrayUtils.addAll(newBits)) << offset % BITS_IN_BYTE );
-//        exetndedNewBits = Arrays.copyOfRange(exetndedNewBits, exetndedNewBits.length - newBits.length - (offset % BITS_IN_BYTE + bitsNumber - 1) / BITS_IN_BYTE, exetndedNewBits.length);
-//
-//        try {
-//            for (int i = startByte; i < endByte; i++) {
-//                content[(offset / 8) + i] = (byte) (content[(offset / 8) + i] | exetndedNewBits[i - startByte]);
-//            }
-//        } catch (Exception ex) {
-//            System.out.println(Arrays.toString(newBits));
-//        }
-//
-////        BitSet contentBitSet = BitSet.valueOf(rewind(Arrays.copyOfRange(content, startByte, endByte)));
-////        BitSet newContentBitSet = BitSet.valueOf(newBits);
-////
-////        saveBits(content, offset, startByte, endByte, contentBitSet, newContentBitSet);
-//    }
-
-
-    private byte[] rewind(byte[] content) {
-        int i = 0;
-        for (byte byteContent : content) {
-            content[i] = (byte) (Integer.reverse(byteContent) >> (Integer.SIZE - Byte.SIZE));
-            i++;
-        }
-        return content;
-    }
-
-    public int getByteIndex(int bitOffset) {
-        return bitOffset / BITS_IN_BYTE;
-    }
-
-
-    private byte[] toByteArray(int value) {
-        return  ByteBuffer.allocate(4).putInt(value).array();
     }
 }

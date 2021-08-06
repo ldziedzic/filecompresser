@@ -92,18 +92,36 @@ import static org.junit.Assert.assertEquals;
     void testSetBitsBigEndian_RandomValue() {
         BitReader bitReader = new BitReader();
 
-        byte[] output = new byte[4];
+        byte[] output = new byte[50000];
         int offset = 0;
-        int bitsNumber = 20;
-        for (int i = 0; i < 1000; i++) {
-            int newContent = ThreadLocalRandom.current().nextInt(10000, 1000000);
 
+        for (int i = 0; i < 1000; i++) {
+            int newContent = ThreadLocalRandom.current().nextInt(10, 1000000);
+            int additionalBitsNumber = ThreadLocalRandom.current().nextInt(0, 30);
+            int bitsNumber = Integer.toBinaryString(newContent).length() + additionalBitsNumber;
             output = bitReader.setBits(output, offset, bitsNumber, newContent);
 
             assertEquals(newContent, bitReader.getBits(output, offset, bitsNumber));
+            offset += bitsNumber;
         }
     }
 
+    @Test
+    void testSetBitsLittleEndian_RandomValue() {
+        BitReader bitReader = new BitReader();
+        byte[] output = new byte[50000];
+        int offset = 0;
+
+        for (int i = 0; i < 1000; i++) {
+            int newContent = ThreadLocalRandom.current().nextInt(10, 1000000);
+            int additionalBitsNumber = ThreadLocalRandom.current().nextInt(0, 30);
+            int bitsNumber = Integer.toBinaryString(newContent).length() + additionalBitsNumber;
+            output = bitReader.setBitsLittleEndian(output, offset, bitsNumber, newContent);
+
+            assertEquals(newContent, bitReader.getBitsLittleEndian(output, offset, bitsNumber));
+            offset += bitsNumber;
+        }
+    }
 
 
 
@@ -178,8 +196,8 @@ import static org.junit.Assert.assertEquals;
 
         output = bitReader.setBitsLittleEndian(output, offset, bitsNumber, newContent);
 
-        assertEquals(output[0], (byte)2);
-        assertEquals(output[1], (byte)8);
+        assertEquals(output[0], (byte)8);
+        assertEquals(output[1], (byte)2);
     }
 
     @Test
@@ -195,8 +213,8 @@ import static org.junit.Assert.assertEquals;
         output = bitReader.setBitsLittleEndian(output, offset, bitsNumber, newContent);
 
         assertEquals(output[0], (byte)-61);
-        assertEquals(output[1], (byte)-64);
-        assertEquals(output[2], (byte)56);
+        assertEquals(output[1], (byte)-8);
+        assertEquals(output[2], (byte)0);
     }
 
 
