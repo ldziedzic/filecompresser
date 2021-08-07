@@ -1,5 +1,6 @@
 package com.dziedzic.filecompresser;
 
+import com.dziedzic.filecompresser.zip.Zip;
 import com.dziedzic.filecompresser.zip.ZipCompresser;
 
 /*
@@ -9,7 +10,7 @@ import com.dziedzic.filecompresser.zip.ZipCompresser;
  */
 public class Main {
     public static void main(String [] args) {
-        ZipCompresser zipCompresser = new ZipCompresser();
-        zipCompresser.getFilesFromZip(args[0]);
+        Zip zip = new Zip();
+        zip.start(args[0], args[1]);
     }
 }
