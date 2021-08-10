@@ -40,7 +40,7 @@ public class BitReader {
     public byte[] setBits(byte[] content, int offset, int bitsNumber, int newBitsInt) {
         String binaryString = Integer.toBinaryString(newBitsInt);
 
-        int bytesNumer = (offset + bitsNumber + BITS_IN_BYTE - bitsNumber % BITS_IN_BYTE) / BITS_IN_BYTE;
+        int bytesNumer = (bitsNumber + BITS_IN_BYTE - (offset +bitsNumber) % BITS_IN_BYTE) / BITS_IN_BYTE;
         if ((offset + bitsNumber + BITS_IN_BYTE - bitsNumber % BITS_IN_BYTE) % BITS_IN_BYTE != 0) {
             bytesNumer++;
         }
@@ -78,7 +78,7 @@ public class BitReader {
     }
 
 
-    byte[] setBitsLittleEndian(byte[] content, int offset, int bitsNumber, int newBitsInt) {
+    public byte[] setBitsLittleEndian(byte[] content, int offset, int bitsNumber, int newBitsInt) {
         String binaryString = Integer.toBinaryString(newBitsInt << (offset % BITS_IN_BYTE));
 
         int bytesNumer = (bitsNumber + BITS_IN_BYTE - (offset +bitsNumber) % BITS_IN_BYTE) / BITS_IN_BYTE;
