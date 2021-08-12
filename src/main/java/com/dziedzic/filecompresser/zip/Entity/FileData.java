@@ -11,6 +11,7 @@ import java.util.List;
 
 public class FileData {
     private int offset;
+    int version;
     private int fileDataSize;
     private boolean isZip;
     private List<Flag> flags;
@@ -28,11 +29,12 @@ public class FileData {
     public FileData() {
     }
 
-    public FileData(int offset, int fileDataSize, boolean isZip, List<Flag> flags, CompressionMethod compresionMethod,
+    public FileData(int offset, int version, int fileDataSize, boolean isZip, List<Flag> flags, CompressionMethod compresionMethod,
                     LocalDateTime modificationDateTime, int crc32Checksum, int compressedSize, int uncompressedSize,
                     short fileNameLength, short extraFieldLength, String filename, String extraFields,
                     int fileHeaderSize) {
         this.offset = offset;
+        this.version = version;
         this.fileDataSize = fileDataSize;
         this.isZip = isZip;
         this.flags = flags;
