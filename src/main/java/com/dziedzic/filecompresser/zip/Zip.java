@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
+import java.util.zip.CRC32;
 
 public class Zip {
     public void start(String compressionType, String path) {
@@ -43,6 +44,7 @@ public class Zip {
             FileData fileData = getFileAttributes(dirPath, filePath);
 
             byte[] content = readFile(filePath.toString());
+            generateCRC32Checksum(content);
 
             Deflater deflater = new Deflater();
             byte [] compressedContent = deflater.compress(content);
@@ -57,7 +59,7 @@ public class Zip {
             outputSize += header.length + compressedContent.length;
             fileIndex++;
         }
-        byte[] outputFile = new byte[outputSize];
+        byte[] outputFile = new byte[outputSize + 22];
         int outputPosition = 0;
         for (int i = 0; i < paths.size(); i++) {
             for (int j = 0; j < output[i].length; j++) {
@@ -65,7 +67,19 @@ public class Zip {
                 outputPosition++;
             }
         }
+        int centralDirectoryHeaderSize = 22;
+
+        ZipHeaderUtils zipHeaderUtils = new ZipHeaderUtils();
+
+        zipHeaderUtils.setEndOfCentralDirectorySignature(outputFile, outputPosition * 8, paths.size(), outputSize);
+
         writeFile(path + "2.zip", outputFile);
+    }
+
+    private void generateCRC32Checksum(byte[] content) {
+        // CRC32 from uncompressed data
+        CRC32 crc = new CRC32();
+
     }
 
     private byte[] generateFileHeader(FileData fileData, byte[] compressedContent) {

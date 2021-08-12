@@ -17,14 +17,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.zip.CRC32;
 
 public class ZipHeaderUtils {
     private static final int FILE_HEADER_SIZE = 30;
     private static final byte[] ZIP_SIGNATURE = {0x50, 0x4b, 0x03, 0x04};
     private static final byte[] CENTRAL_DIRECTORY_SIGNATURE = {0x50, 0x4b, 0x01, 0x02};
+    private static final byte[] END_OF_CENTRAL_DIRECTORY_SIGNATURE = {0x50, 0x4b, 0x05, 0x06};
 
     public FileData getLocalFileHeader(byte[] content, int offset) {
+        BitReader bitReader = new BitReader();
         boolean isZip = checkLocalFileHeaderSignature(Arrays.copyOfRange(content, offset, offset + 4));
+        int version = bitReader.getBitsLittleEndian(Arrays.copyOfRange(content, offset + 4, offset + 6), 0 , 16);
         Flag flag = getFlag(Arrays.copyOfRange(content, offset + 6, offset + 8));
         List<Flag> flags = new ArrayList<>();
         CompressionMethod compresionMethod = getCompressionMethod(Arrays.copyOfRange(content, offset + 8,
@@ -43,7 +47,7 @@ public class ZipHeaderUtils {
 
         int fileDataSize = FILE_HEADER_SIZE + fileNameLength + extraFieldLength + compressedSize;
 
-        return new FileData(offset, fileDataSize, isZip, flags, compresionMethod,  modificationDateTime, crc32Checksum,
+        return new FileData(offset, version, fileDataSize, isZip, flags, compresionMethod,  modificationDateTime, crc32Checksum,
                 compressedSize, uncompressedSize, fileNameLength, extraFieldLength, filename, extraFields,
                 fileHeaderSize);
     }
@@ -64,7 +68,33 @@ public class ZipHeaderUtils {
         return offset;
     }
 
+
+    int setEndOfCentralDirectorySignature(byte[] output, int offset, int filesNumber, int diskSize) {
+        BitReader bitReader = new BitReader();
+        for (byte element : END_OF_CENTRAL_DIRECTORY_SIGNATURE) {
+            bitReader.setBitsLittleEndian(output, offset, 8, element);
+            offset += 8;
+        }
+        bitReader.setBitsLittleEndian(output, offset, 4*8, 0);
+        offset += 32;
+
+        bitReader.setBitsLittleEndian(output, offset, 2*8, filesNumber);
+        offset += 16;
+
+        bitReader.setBitsLittleEndian(output, offset, 2*8, filesNumber);
+        offset += 16;
+
+        bitReader.setBitsLittleEndian(output, offset, 4*8, diskSize);
+        offset += 32;
+
+        bitReader.setBitsLittleEndian(output, offset, 6*8, 0);
+        return offset;
+    }
+
     int setVersion(byte[] output, int offset) {
+        int deflateVersion = 20;
+        BitReader bitReader = new BitReader();
+        bitReader.setBitsLittleEndian(output, offset, 16, deflateVersion);
         offset += 16;
         return offset;
     }
