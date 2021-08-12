@@ -39,27 +39,41 @@ public class Zip {
         byte[][] output = new byte[paths.size()][];
         int fileIndex = 0;
         int outputSize = 0;
+        FileData[] fileData = new FileData[paths.size()];
         for (Path filePath: paths) {
 
-            FileData fileData = getFileAttributes(dirPath, filePath);
+            fileData[fileIndex] = getFileAttributes(dirPath, filePath);
 
             byte[] content = readFile(filePath.toString());
-            generateCRC32Checksum(content);
+            CRC32 crc32 = generateCRC32Checksum(content);
+            fileData[fileIndex].setCrc32Checksum((int) crc32.getValue());
 
             Deflater deflater = new Deflater();
             byte [] compressedContent = deflater.compress(content);
-            fileData.setCompressedSize(compressedContent.length);
+            fileData[fileIndex].setCompressedSize(compressedContent.length);
 
-            byte[] header = generateFileHeader(fileData, compressedContent);
+            byte[] header = generateFileHeader(fileData[fileIndex]);
 
             output[fileIndex] = new byte[header.length + compressedContent.length];
             System.arraycopy(header, 0, output[fileIndex], 0, header.length);
             System.arraycopy(compressedContent, 0, output[fileIndex], header.length, compressedContent.length);
-            System.out.println("Successfully compressed " + fileData.getFilename());
+            System.out.println("Successfully compressed " + fileData[fileIndex].getFilename());
+            fileData[fileIndex].setOffset(outputSize);
             outputSize += header.length + compressedContent.length;
             fileIndex++;
         }
-        byte[] outputFile = new byte[outputSize + 22];
+
+        fileIndex = 0;
+        byte[][] centralDirectoryHeaders = new byte[paths.size()][];
+        int centralDirectoryHeaderSize = 0;
+        for (int i = 0; i < paths.size(); i++) {
+            centralDirectoryHeaders[fileIndex] = generateCentralDirectoryFileHeader(fileData[fileIndex]);
+            centralDirectoryHeaderSize += centralDirectoryHeaders[fileIndex].length;
+            fileIndex++;
+        }
+
+        int endOfCentralDirectoryHeaderSize = 22;
+        byte[] outputFile = new byte[outputSize + centralDirectoryHeaderSize + endOfCentralDirectoryHeaderSize];
         int outputPosition = 0;
         for (int i = 0; i < paths.size(); i++) {
             for (int j = 0; j < output[i].length; j++) {
@@ -67,22 +81,29 @@ public class Zip {
                 outputPosition++;
             }
         }
-        int centralDirectoryHeaderSize = 22;
+        for (int i = 0; i < paths.size(); i++) {
+            for (int j = 0; j < centralDirectoryHeaders[i].length; j++) {
+                outputFile[outputPosition] = centralDirectoryHeaders[i][j];
+                outputPosition++;
+            }
+        }
 
         ZipHeaderUtils zipHeaderUtils = new ZipHeaderUtils();
 
-        zipHeaderUtils.setEndOfCentralDirectorySignature(outputFile, outputPosition * 8, paths.size(), outputSize);
+        zipHeaderUtils.setEndOfCentralDirectory(outputFile, outputPosition * 8, paths.size(), outputSize);
 
         writeFile(path + "2.zip", outputFile);
     }
 
-    private void generateCRC32Checksum(byte[] content) {
+    private CRC32 generateCRC32Checksum(byte[] content) {
         // CRC32 from uncompressed data
         CRC32 crc = new CRC32();
+        crc.update(content, 0, content.length);
+        return crc;
 
     }
 
-    private byte[] generateFileHeader(FileData fileData, byte[] compressedContent) {
+    private byte[] generateFileHeader(FileData fileData) {
         byte[] header = new byte[30 + fileData.getFilename().length() + fileData.getExtraFieldLength()];
         ZipHeaderUtils zipHeaderUtils = new ZipHeaderUtils();
         int offset = 0;
@@ -92,10 +113,33 @@ public class Zip {
         offset = zipHeaderUtils.setDeflateCompressionMethod(header, offset);
         offset = zipHeaderUtils.setModificationDateTime(header, offset, fileData.getModificationDateTime());
         offset = zipHeaderUtils.setCRC32Checksum(header, offset, fileData.getCrc32Checksum());
-        offset = zipHeaderUtils.setCompressedSize(header, offset, compressedContent.length);
+        offset = zipHeaderUtils.setCompressedSize(header, offset, fileData.getCompressedSize());
         offset = zipHeaderUtils.setUncompressedSize(header, offset, fileData.getUncompressedSize());
         offset = zipHeaderUtils.setFilenameLen(header, offset, fileData.getFileNameLength());
         offset = zipHeaderUtils.setExtraFieldsLen(header, offset, fileData.getExtraFieldLength());
+        zipHeaderUtils.setFilename(header, offset, fileData.getFilename(), fileData.getFileNameLength());
+        return header;
+    }
+
+    private byte[] generateCentralDirectoryFileHeader(FileData fileData) {
+        byte[] header = new byte[46 + fileData.getFilename().length() + fileData.getExtraFieldLength()];
+        ZipHeaderUtils zipHeaderUtils = new ZipHeaderUtils();
+        int offset = 0;
+        offset = zipHeaderUtils.setFileCentralDirectorySignature(header, offset);
+        offset = zipHeaderUtils.setVersion(header, offset);
+        offset = zipHeaderUtils.setVersion(header, offset);
+        offset = zipHeaderUtils.setFlags(header, offset);
+        offset = zipHeaderUtils.setDeflateCompressionMethod(header, offset);
+        offset = zipHeaderUtils.setModificationDateTime(header, offset, fileData.getModificationDateTime());
+        offset = zipHeaderUtils.setCRC32Checksum(header, offset, fileData.getCrc32Checksum());
+        offset = zipHeaderUtils.setCompressedSize(header, offset, fileData.getCompressedSize());
+        offset = zipHeaderUtils.setUncompressedSize(header, offset, fileData.getUncompressedSize());
+        offset = zipHeaderUtils.setFilenameLen(header, offset, fileData.getFileNameLength());
+        offset = zipHeaderUtils.setExtraFieldsLen(header, offset, fileData.getExtraFieldLength());
+        offset = zipHeaderUtils.setExtraCommentsLen(header, offset, fileData.getExtraFieldLength());
+        offset = zipHeaderUtils.setDiskStart(header, offset, 0);
+        offset = zipHeaderUtils.setAdditionalAttributes(header, offset);
+        offset = zipHeaderUtils.setFileOffset(header, offset, fileData.getOffset());
         zipHeaderUtils.setFilename(header, offset, fileData.getFilename(), fileData.getFileNameLength());
         return header;
     }

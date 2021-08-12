@@ -17,7 +17,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.zip.CRC32;
 
 public class ZipHeaderUtils {
     private static final int FILE_HEADER_SIZE = 30;
@@ -69,7 +68,17 @@ public class ZipHeaderUtils {
     }
 
 
-    int setEndOfCentralDirectorySignature(byte[] output, int offset, int filesNumber, int diskSize) {
+    int setFileCentralDirectorySignature(byte[] output, int offset) {
+        BitReader bitReader = new BitReader();
+        for (byte element : CENTRAL_DIRECTORY_SIGNATURE) {
+            bitReader.setBitsLittleEndian(output, offset, 8, element);
+            offset += 8;
+        }
+        return offset;
+    }
+
+
+    void setEndOfCentralDirectory(byte[] output, int offset, int filesNumber, int diskSize) {
         BitReader bitReader = new BitReader();
         for (byte element : END_OF_CENTRAL_DIRECTORY_SIGNATURE) {
             bitReader.setBitsLittleEndian(output, offset, 8, element);
@@ -88,7 +97,6 @@ public class ZipHeaderUtils {
         offset += 32;
 
         bitReader.setBitsLittleEndian(output, offset, 6*8, 0);
-        return offset;
     }
 
     int setVersion(byte[] output, int offset) {
@@ -172,6 +180,35 @@ public class ZipHeaderUtils {
         BitReader bitReader = new BitReader();
         bitReader.setBitsLittleEndian(output, offset, 16, extraFieldsLen);
         offset += 16;
+        return offset;
+    }
+
+    int setExtraCommentsLen(byte[] output, int offset, int extraCommentsLen) {
+        BitReader bitReader = new BitReader();
+        bitReader.setBitsLittleEndian(output, offset, 16, extraCommentsLen);
+        offset += 16;
+        return offset;
+    }
+
+    int setDiskStart(byte[] output, int offset, int diskStart) {
+        BitReader bitReader = new BitReader();
+        bitReader.setBitsLittleEndian(output, offset, 16, diskStart);
+        offset += 16;
+        return offset;
+    }
+
+
+    int setAdditionalAttributes(byte[] output, int offset) {
+        BitReader bitReader = new BitReader();
+        bitReader.setBitsLittleEndian(output, offset, 6 * 8, 0);
+        offset += 16;
+        return offset;
+    }
+
+    int setFileOffset(byte[] output, int offset, int fileHeaderOffset) {
+        BitReader bitReader = new BitReader();
+        bitReader.setBitsLittleEndian(output, offset, 32, fileHeaderOffset);
+        offset += 32;
         return offset;
     }
 
