@@ -81,6 +81,7 @@ public class Zip {
                 outputPosition++;
             }
         }
+        int centralDirectoryStartPosition = outputPosition;
         for (int i = 0; i < paths.size(); i++) {
             for (int j = 0; j < centralDirectoryHeaders[i].length; j++) {
                 outputFile[outputPosition] = centralDirectoryHeaders[i][j];
@@ -90,7 +91,8 @@ public class Zip {
 
         ZipHeaderUtils zipHeaderUtils = new ZipHeaderUtils();
 
-        zipHeaderUtils.setEndOfCentralDirectory(outputFile, outputPosition * 8, paths.size(), outputSize);
+        zipHeaderUtils.setEndOfCentralDirectory(outputFile, outputPosition * 8, paths.size(),
+                centralDirectoryHeaderSize, centralDirectoryStartPosition);
 
         writeFile(path + "2.zip", outputFile);
     }
@@ -108,7 +110,7 @@ public class Zip {
         ZipHeaderUtils zipHeaderUtils = new ZipHeaderUtils();
         int offset = 0;
         offset = zipHeaderUtils.setZipSignature(header, offset);
-        offset = zipHeaderUtils.setVersion(header, offset);
+        offset = zipHeaderUtils.setPKZIPVersion(header, offset);
         offset = zipHeaderUtils.setFlags(header, offset);
         offset = zipHeaderUtils.setDeflateCompressionMethod(header, offset);
         offset = zipHeaderUtils.setModificationDateTime(header, offset, fileData.getModificationDateTime());
@@ -127,7 +129,7 @@ public class Zip {
         int offset = 0;
         offset = zipHeaderUtils.setFileCentralDirectorySignature(header, offset);
         offset = zipHeaderUtils.setVersion(header, offset);
-        offset = zipHeaderUtils.setVersion(header, offset);
+        offset = zipHeaderUtils.setPKZIPVersion(header, offset);
         offset = zipHeaderUtils.setFlags(header, offset);
         offset = zipHeaderUtils.setDeflateCompressionMethod(header, offset);
         offset = zipHeaderUtils.setModificationDateTime(header, offset, fileData.getModificationDateTime());

@@ -78,7 +78,8 @@ public class ZipHeaderUtils {
     }
 
 
-    void setEndOfCentralDirectory(byte[] output, int offset, int filesNumber, int diskSize) {
+    void setEndOfCentralDirectory(byte[] output, int offset, int filesNumber, int centralDirectorySize,
+                                  int centralDirectoryStartPosition) {
         BitReader bitReader = new BitReader();
         for (byte element : END_OF_CENTRAL_DIRECTORY_SIGNATURE) {
             bitReader.setBitsLittleEndian(output, offset, 8, element);
@@ -93,13 +94,27 @@ public class ZipHeaderUtils {
         bitReader.setBitsLittleEndian(output, offset, 2*8, filesNumber);
         offset += 16;
 
-        bitReader.setBitsLittleEndian(output, offset, 4*8, diskSize);
+        bitReader.setBitsLittleEndian(output, offset, 4*8, centralDirectorySize);
         offset += 32;
 
-        bitReader.setBitsLittleEndian(output, offset, 6*8, 0);
+        bitReader.setBitsLittleEndian(output, offset, 4*8, centralDirectoryStartPosition);
+        offset += 32;
+
+        bitReader.setBitsLittleEndian(output, offset, 2*8, 0);
     }
 
     int setVersion(byte[] output, int offset) {
+        int upperByte = 20;
+        BitReader bitReader = new BitReader();
+        bitReader.setBitsLittleEndian(output, offset, 8, upperByte);
+        offset += 8;
+        int lowerByte = 0;
+        bitReader.setBitsLittleEndian(output, offset, 8, lowerByte);
+        offset += 8;
+        return offset;
+    }
+
+    int setPKZIPVersion(byte[] output, int offset) {
         int deflateVersion = 20;
         BitReader bitReader = new BitReader();
         bitReader.setBitsLittleEndian(output, offset, 16, deflateVersion);
@@ -201,7 +216,7 @@ public class ZipHeaderUtils {
     int setAdditionalAttributes(byte[] output, int offset) {
         BitReader bitReader = new BitReader();
         bitReader.setBitsLittleEndian(output, offset, 6 * 8, 0);
-        offset += 16;
+        offset += 48;
         return offset;
     }
 
