@@ -63,6 +63,13 @@ public class Zip {
             fileIndex++;
         }
 
+        byte[] outputFile = addCentralDirectoryHeaders(paths, output, outputSize, fileData);
+
+        writeFile(path + "2.zip", outputFile);
+    }
+
+    private byte[] addCentralDirectoryHeaders(List<Path> paths, byte[][] output, int outputSize, FileData[] fileData) {
+        int fileIndex;
         fileIndex = 0;
         byte[][] centralDirectoryHeaders = new byte[paths.size()][];
         int centralDirectoryHeaderSize = 0;
@@ -93,8 +100,7 @@ public class Zip {
 
         zipHeaderUtils.setEndOfCentralDirectory(outputFile, outputPosition * 8, paths.size(),
                 centralDirectoryHeaderSize, centralDirectoryStartPosition);
-
-        writeFile(path + "2.zip", outputFile);
+        return outputFile;
     }
 
     private CRC32 generateCRC32Checksum(byte[] content) {
