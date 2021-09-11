@@ -16,6 +16,7 @@ import com.dziedzic.filecompresser.algorithms.deflate.entity.LengthCode;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class Deflater {
 
@@ -24,36 +25,25 @@ public class Deflater {
     private final int BITS_IN_BYTE = 8;
 
     public byte[] compress(byte[] content) {
-        return compressContent(content);
-    }
-
-
-    public byte[] decompress(byte[] content, int outputSize) {
-        byte[] output = new byte[Math.toIntExact(outputSize)];
-
-        readCompressedContent(content, output, outputSize);
-
-        return output;
-    }
-
-    private byte[] compressContent(byte[] content) {
         int maxBlockSize = 32768; // 2^15
         FilePosition filePosition = new FilePosition(0, 0);
+        int maxBlockHeaderSize = 286 * 8 + 32 + 19;
+        int outputSize = 2 * content.length + maxBlockHeaderSize;
         if (content.length < 65000) {
-            byte[] output = new byte[content.length + 1];
-            return compressWithStaticsHuffmanCodes(content, filePosition, output);
+            byte[] output = new byte[outputSize];
+            return compressWithDynamicsHuffmanCodes(content, filePosition, output);
         } else {
             int blockNumber = content.length / maxBlockSize;
             if (content.length % maxBlockSize != 0)
                 blockNumber++;
             int compressedOutputBytes = 0;
             int processedBytes = 0;
-            byte[] compressedBlocks = new byte[2 * content.length];
+            byte[] compressedBlocks = new byte[outputSize];
 
             for (int i = 0; i < blockNumber; i++) {
                 int blockSize = Math.min(content.length - processedBytes, maxBlockSize);
                 processedBytes += blockSize;
-                compressWithStaticsHuffmanCodes(
+                compressWithDynamicsHuffmanCodes(
                         Arrays.copyOfRange(content, i * maxBlockSize, i * maxBlockSize + blockSize),
                         filePosition,
                         compressedBlocks);
@@ -67,9 +57,17 @@ public class Deflater {
                 System.arraycopy(compressedBlocks, 0, output, 0, compressedOutputBytes);
             return output;
         }
-
-
     }
+
+
+    public byte[] decompress(byte[] content, int outputSize) {
+        byte[] output = new byte[Math.toIntExact(outputSize)];
+
+        readCompressedContent(content, output, outputSize);
+
+        return output;
+    }
+
 
     private byte[] compressWithStaticsHuffmanCodes(byte[] content, FilePosition filePosition, byte[] output) {
         BitReader bitReader = new BitReader();
@@ -79,28 +77,64 @@ public class Deflater {
             isLastBlock = true;
         BlockHeader blockHeader = new BlockHeader(isLastBlock, CompressionType.COMPRESSED_WITH_FIXED_HUFFMAN_CODES);
 
+        List<Integer> compressedContent = new ArrayList<>();
+        for (int i = 0; i < content.length; i++) {
+            compressedContent.add((((int) content[i]) & 0x0ff)); // change this line to LZ77 compression
+        }
+        compressedContent.add(END_OF_BLOCK);
+
+        return writeHuffmanCodes(content, filePosition, output, bitReader, isLastBlock, blockHeader, compressedContent);
+    }
+
+
+    private byte[] compressWithDynamicsHuffmanCodes(byte[] content, FilePosition filePosition, byte[] output) {
+        BitReader bitReader = new BitReader();
+
+        boolean isLastBlock = false;
+        if (content.length < MAX_BLOCK_SIZE)
+            isLastBlock = true;
+        BlockHeader blockHeader = new BlockHeader(isLastBlock, CompressionType.COMPRESSED_WITH_DYNAMIC_HUFFMAN_CODES);
+
+        List<Integer> compressedContent = new ArrayList<>();
+        for (int i = 0; i < content.length; i++) {
+            compressedContent.add((((int) content[i]) & 0x0ff)); // change this line to LZ77 compression
+        }
+        compressedContent.add(END_OF_BLOCK);
+
+        return writeHuffmanCodes(content, filePosition, output, bitReader, isLastBlock, blockHeader, compressedContent);
+    }
+
+
+    private byte[] writeHuffmanCodes(byte[] content, FilePosition filePosition, byte[] output, BitReader bitReader,
+                                     boolean isLastBlock, BlockHeader blockHeader, List<Integer> compressedContent) {
         CodeTreesRepresener codeTreesRepresener =
                 new CodeTreesRepresener(content, blockHeader, filePosition.getOffset());
-        codeTreesRepresener.generateCodeTreesRepresentation();
+        codeTreesRepresener.generateCodeTreesRepresentation(compressedContent);
 
-        List<HuffmanCodeLengthData> compressedContent = new ArrayList<>();
-        for (byte b : content) {
+        HuffmanCodeLengthData[] compressedHuffmanCodes = new HuffmanCodeLengthData[compressedContent.size()];
+        int compressedHuffmanCodesPosition;
+        for (compressedHuffmanCodesPosition = 0;
+             compressedHuffmanCodesPosition < compressedContent.size();
+             compressedHuffmanCodesPosition++) {
             for (HuffmanCodeLengthData huffmanLengthCode : codeTreesRepresener.getHuffmanLengthCodes()) {
-                if (huffmanLengthCode.getIndex() == (((int) b) & 0x0ff)) {
-                    // compare only one byte
-                    // it removes negative integers
-                    compressedContent.add(huffmanLengthCode);
+                if (huffmanLengthCode.getIndex() == compressedContent.get(compressedHuffmanCodesPosition)) {
+                    compressedHuffmanCodes[compressedHuffmanCodesPosition] = huffmanLengthCode;
                 }
             }
         }
-        for (HuffmanCodeLengthData huffmanLengthCode: codeTreesRepresener.getHuffmanLengthCodes()) {
-            if (huffmanLengthCode.getIndex() == END_OF_BLOCK) {
-                compressedContent.add(huffmanLengthCode);
-            }
-        }
+//        for (HuffmanCodeLengthData huffmanLengthCode: codeTreesRepresener.getHuffmanLengthCodes()) {
+//            if (huffmanLengthCode.getIndex() == END_OF_BLOCK) {
+//                compressedHuffmanCodes[compressedHuffmanCodesPosition] = huffmanLengthCode;
+//                compressedHuffmanCodesPosition++;
+//            }
+//        }
 
         output = writeBlockHeader(output, filePosition, isLastBlock, blockHeader);
-        for (HuffmanCodeLengthData huffmanLengthCode: compressedContent) {
+        if (blockHeader.getCompressionType() == CompressionType.COMPRESSED_WITH_DYNAMIC_HUFFMAN_CODES) {
+            output = writeHeaderForDynamicsHuffmanCodes(filePosition, output, bitReader, codeTreesRepresener);
+
+        }
+        for (HuffmanCodeLengthData huffmanLengthCode: compressedHuffmanCodes) {
             output = bitReader.setBits(output, filePosition.getPosition(), huffmanLengthCode.bitsNumber,
                     huffmanLengthCode.huffmanCode);
             filePosition.increasePosition(huffmanLengthCode.bitsNumber);
@@ -109,6 +143,54 @@ public class Deflater {
         if (filePosition.getPosition() % BITS_IN_BYTE != 0)
             endPosition++;
         return Arrays.copyOfRange(output, 0, endPosition); //invalid
+    }
+
+    private byte[] writeHeaderForDynamicsHuffmanCodes(FilePosition filePosition, byte[] output, BitReader bitReader, CodeTreesRepresener codeTreesRepresener) {
+        List<Integer> headerHuffmanLengthCodes = new ArrayList<>(CodeTreesRepresener.NUMBER_OF_HUFFMAN_CODES);
+        for (HuffmanCodeLengthData code : codeTreesRepresener.getHuffmanLengthCodes()) {
+            headerHuffmanLengthCodes.add(code.bitsNumber);
+        }
+
+        int literalLengthAlphabetLength = Math.max(getNonZeroElementsNumber(headerHuffmanLengthCodes), 257);
+        headerHuffmanLengthCodes = headerHuffmanLengthCodes.stream().limit(literalLengthAlphabetLength).collect(Collectors.toList());
+
+
+        List<HuffmanCodeLengthData> compressedHeaderHuffmanCodes =
+                Arrays.asList(
+                        Arrays.copyOfRange(
+                                codeTreesRepresener.initializeHuffmanCodeLengthData(headerHuffmanLengthCodes), 0, 19));
+
+        output = codeTreesRepresener.setLiteralLengthAlphabetLength(literalLengthAlphabetLength, output, filePosition.getPosition());
+        filePosition.increasePosition(5);
+        output = codeTreesRepresener.setDistanceAlphabetLength(1, output, filePosition.getPosition());
+        filePosition.increasePosition(5);
+        output = codeTreesRepresener.setCodeAlphabetLength(19, output, filePosition.getPosition());
+        filePosition.increasePosition(4);
+
+        output = codeTreesRepresener.writeHeaderHuffmanCodeAlphabet(compressedHeaderHuffmanCodes, output, filePosition);
+        codeTreesRepresener.generateDynamicsHuffmanLengthCodes(compressedHeaderHuffmanCodes);
+
+        List<HuffmanCodeLengthData> huffmanCodeLengthData = codeTreesRepresener.getHuffmanLengthCodes();
+        for (int i = 0; i < literalLengthAlphabetLength; i++) {
+            HuffmanCodeLengthData code = huffmanCodeLengthData.get(i);
+            output = bitReader.setBits(output, filePosition.getPosition(), compressedHeaderHuffmanCodes.get(code.bitsNumber).bitsNumber,
+                    compressedHeaderHuffmanCodes.get(code.bitsNumber).huffmanCode);
+            filePosition.increasePosition(compressedHeaderHuffmanCodes.get(code.bitsNumber).bitsNumber);
+        }
+        output = bitReader.setBits(output, filePosition.getPosition(), compressedHeaderHuffmanCodes.get(0).bitsNumber,
+                compressedHeaderHuffmanCodes.get(0).huffmanCode);
+        filePosition.increasePosition(compressedHeaderHuffmanCodes.get(0).bitsNumber); // TODO change to method which generates distance codes
+
+        return output;
+    }
+
+    private int getNonZeroElementsNumber(List<Integer> headerHuffmanLengthCodes) {
+        int lastNonZeroIndex = 0;
+        for (int i = 0; i < headerHuffmanLengthCodes.size(); i++) {
+            if (headerHuffmanLengthCodes.get(i) != 0)
+                lastNonZeroIndex = i;
+        }
+        return lastNonZeroIndex;
     }
 
     private byte[] writeBlockHeader(byte[] output, FilePosition filePosition, boolean isLastBlock, BlockHeader blockHeader) {
@@ -120,10 +202,6 @@ public class Deflater {
         filePosition.increasePosition(2);
 
         return output;
-    }
-
-    private void compressWithDynamicsHuffmanCodes(byte[] content) {
-
     }
 
 

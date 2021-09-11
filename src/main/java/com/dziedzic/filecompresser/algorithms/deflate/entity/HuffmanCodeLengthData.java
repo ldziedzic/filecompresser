@@ -6,18 +6,20 @@ package com.dziedzic.filecompresser.algorithms.deflate.entity;/*
 
 public class HuffmanCodeLengthData {
     public int index = -1;
-    public int lengthCode;
     public int huffmanCode = 0;
     public int bitsNumber = 0;
 
-    public HuffmanCodeLengthData(int index, int lengthCode) {
+    public HuffmanCodeLengthData(int index) {
         this.index = index;
-        this.lengthCode = lengthCode;
     }
 
-    public HuffmanCodeLengthData(int index, int lengthCode, int bitsNumber, int huffmanCode) {
+    public HuffmanCodeLengthData(int index, int bitsNumber) {
         this.index = index;
-        this.lengthCode = lengthCode;
+        this.bitsNumber = bitsNumber;
+    }
+
+    public HuffmanCodeLengthData(int index, int bitsNumber, int huffmanCode) {
+        this.index = index;
         this.bitsNumber = bitsNumber;
         this.huffmanCode = huffmanCode;
     }
@@ -28,14 +30,6 @@ public class HuffmanCodeLengthData {
 
     public void setIndex(int index) {
         this.index = index;
-    }
-
-    public int getLengthCode() {
-        return lengthCode;
-    }
-
-    public void setLengthCode(int lengthCode) {
-        this.lengthCode = lengthCode;
     }
 
     public int getHuffmanCode() {
