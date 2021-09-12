@@ -277,9 +277,9 @@ public class CodeTreesRepresener {
         return bitReader.setBitsLittleEndian(output, offset, 4, value - 4);
     }
 
-    byte[] writeHeaderHuffmanCodeAlphabet(List<HuffmanCodeLengthData> compressedHeaderHuffmanCodes, byte[] output, FilePosition filePosition) {
+    byte[] writeHeaderHuffmanCodeAlphabet(List<HuffmanCodeLengthData> compressedHeaderHuffmanCodes, byte[] output, FilePosition filePosition, int codeAlphabetLength) {
         BitReader bitReader = new BitReader();
-        for (int i = 0; i < 19; i++) {
+        for (int i = 0; i < codeAlphabetLength; i++) {
             output = bitReader.setBitsLittleEndian(
                     output, filePosition.getPosition(), 3, compressedHeaderHuffmanCodes.get(getCodeLengthIndex(i)).bitsNumber);
             filePosition.increasePosition(3);

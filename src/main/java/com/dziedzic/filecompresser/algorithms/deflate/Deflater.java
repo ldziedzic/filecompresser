@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class Deflater {
 
@@ -147,12 +148,21 @@ public class Deflater {
 
     private byte[] writeHeaderForDynamicsHuffmanCodes(FilePosition filePosition, byte[] output, BitReader bitReader, CodeTreesRepresener codeTreesRepresener) {
         List<Integer> headerHuffmanLengthCodes = new ArrayList<>(CodeTreesRepresener.NUMBER_OF_HUFFMAN_CODES);
+        List<Integer> headerHuffmanDistanceCodes = new ArrayList<>(CodeTreesRepresener.NUMBER_OF_DISTANCE_CODES);
         for (HuffmanCodeLengthData code : codeTreesRepresener.getHuffmanLengthCodes()) {
             headerHuffmanLengthCodes.add(code.bitsNumber);
         }
+        int distanceCodesNumber = 1;
+        for (int i = 0; i < distanceCodesNumber; i++) { // TODO : only temporary - it should be replaced with generating distance codes
+            headerHuffmanDistanceCodes.add(i);
+        }
 
         int literalLengthAlphabetLength = Math.max(getNonZeroElementsNumber(headerHuffmanLengthCodes), 257);
-        headerHuffmanLengthCodes = headerHuffmanLengthCodes.stream().limit(literalLengthAlphabetLength).collect(Collectors.toList());
+
+        headerHuffmanLengthCodes = Stream.concat(headerHuffmanLengthCodes.stream(), headerHuffmanDistanceCodes.stream())
+                .collect(Collectors.toList());
+        headerHuffmanLengthCodes.add(17);
+        headerHuffmanLengthCodes.add(18);
 
 
         List<HuffmanCodeLengthData> compressedHeaderHuffmanCodes =
@@ -160,14 +170,20 @@ public class Deflater {
                         Arrays.copyOfRange(
                                 codeTreesRepresener.initializeHuffmanCodeLengthData(headerHuffmanLengthCodes), 0, 19));
 
+//        List<HuffmanCodeLengthData> compressedDistanceCodes =
+//                Arrays.asList(
+//                        Arrays.copyOfRange(
+//                                codeTreesRepresener.initializeHuffmanCodeLengthData(headerHuffmanDistanceCodes), 0, 19));
+
+        int codeAlphabetLength = 18;
         output = codeTreesRepresener.setLiteralLengthAlphabetLength(literalLengthAlphabetLength, output, filePosition.getPosition());
         filePosition.increasePosition(5);
-        output = codeTreesRepresener.setDistanceAlphabetLength(1, output, filePosition.getPosition());
+        output = codeTreesRepresener.setDistanceAlphabetLength(distanceCodesNumber, output, filePosition.getPosition());
         filePosition.increasePosition(5);
-        output = codeTreesRepresener.setCodeAlphabetLength(19, output, filePosition.getPosition());
+        output = codeTreesRepresener.setCodeAlphabetLength(codeAlphabetLength, output, filePosition.getPosition());
         filePosition.increasePosition(4);
 
-        output = codeTreesRepresener.writeHeaderHuffmanCodeAlphabet(compressedHeaderHuffmanCodes, output, filePosition);
+        output = codeTreesRepresener.writeHeaderHuffmanCodeAlphabet(compressedHeaderHuffmanCodes, output, filePosition, codeAlphabetLength);
         codeTreesRepresener.generateDynamicsHuffmanLengthCodes(compressedHeaderHuffmanCodes);
 
         List<HuffmanCodeLengthData> huffmanCodeLengthData = codeTreesRepresener.getHuffmanLengthCodes();
@@ -176,7 +192,39 @@ public class Deflater {
             output = bitReader.setBits(output, filePosition.getPosition(), compressedHeaderHuffmanCodes.get(code.bitsNumber).bitsNumber,
                     compressedHeaderHuffmanCodes.get(code.bitsNumber).huffmanCode);
             filePosition.increasePosition(compressedHeaderHuffmanCodes.get(code.bitsNumber).bitsNumber);
+            if (code.bitsNumber == 0) {
+                int zerosToCopy = 0;
+                // 138 is maximum allowed number of copying 0
+                for (int j = i + 1; j <= Math.min(i + 138, literalLengthAlphabetLength); j++) {
+                    if (huffmanCodeLengthData.get(j).bitsNumber == 0)
+                        zerosToCopy = j - i;
+                    else
+                        break;
+                }
+                if (zerosToCopy >= 3 && zerosToCopy <= 10) {
+                    output = bitReader.setBits(output, filePosition.getPosition(), compressedHeaderHuffmanCodes.get(17).bitsNumber,
+                            compressedHeaderHuffmanCodes.get(17).huffmanCode);
+                    filePosition.increasePosition(compressedHeaderHuffmanCodes.get(17).bitsNumber);
+                    output = bitReader.setBitsLittleEndian(output, filePosition.getPosition(), 3, zerosToCopy - 3);
+                    filePosition.increasePosition(3);
+                    i += zerosToCopy;
+                } else if (zerosToCopy >= 11) {
+                    output = bitReader.setBits(output, filePosition.getPosition(), compressedHeaderHuffmanCodes.get(18).bitsNumber,
+                            compressedHeaderHuffmanCodes.get(18).huffmanCode);
+                    filePosition.increasePosition(compressedHeaderHuffmanCodes.get(18).bitsNumber);
+                    output = bitReader.setBitsLittleEndian(output, filePosition.getPosition(), 7, zerosToCopy - 11);
+                    filePosition.increasePosition(7);
+                    i += zerosToCopy;
+                }
+            }
         }
+//        for (int i = 0; i < distanceCodesNumber; i++) {
+//            HuffmanCodeLengthData code = huffmanCodeLengthData.get(i);
+//            output = bitReader.setBits(output, filePosition.getPosition(), compressedHeaderHuffmanCodes.get(code.bitsNumber).bitsNumber,
+//                    compressedHeaderHuffmanCodes.get(code.bitsNumber).huffmanCode);
+//            filePosition.increasePosition(compressedHeaderHuffmanCodes.get(code.bitsNumber).bitsNumber);
+//        }
+
         output = bitReader.setBits(output, filePosition.getPosition(), compressedHeaderHuffmanCodes.get(0).bitsNumber,
                 compressedHeaderHuffmanCodes.get(0).huffmanCode);
         filePosition.increasePosition(compressedHeaderHuffmanCodes.get(0).bitsNumber); // TODO change to method which generates distance codes
