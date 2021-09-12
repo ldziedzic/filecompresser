@@ -70,8 +70,13 @@ public class CodeTreesRepresener {
     HuffmanCodeLengthData[] initializeHuffmanCodeLengthData(List<Integer> compressedContent) {
         Integer[] codesCounter = new Integer[NUMBER_OF_HUFFMAN_CODES];
         Arrays.fill(codesCounter, 0);
+        int nonZeroElements = 0;
         for (Integer element : compressedContent) {
             codesCounter[element]++;
+        }
+        for (Integer element : codesCounter) {
+            if (element != 0)
+                nonZeroElements++;
         }
         Integer[] indices = new Integer[codesCounter.length];
         for (int i = 0; i < indices.length; i++) {
@@ -85,23 +90,63 @@ public class CodeTreesRepresener {
             }
         });
 
+        int maxPower = 1;
+        int diff = 0;
+        while (Math.pow(2, maxPower) <= nonZeroElements) {
+            diff = (int) (Math.pow(2, maxPower) - (int) (nonZeroElements - Math.pow(2, maxPower)));
+            maxPower++;
+        }
+        maxPower--;
+
         HuffmanCodeLengthData[] huffmanCodeLengthData = new HuffmanCodeLengthData[codesCounter.length];
-        int maxElementNumber = 4;
+
         int currentElement = 0;
-        for (int bitsNumber = 4; bitsNumber <= MAX_HUFFMAN_LENGTH; bitsNumber++) {
-            for (int j = 0; j < maxElementNumber; j++) {
-                if (currentElement >= codesCounter.length)
-                    break;
-                if (codesCounter[indices[currentElement]] != 0)
-                    huffmanCodeLengthData[indices[currentElement]] = new HuffmanCodeLengthData(indices[currentElement], bitsNumber);
-                else
-                    huffmanCodeLengthData[indices[currentElement]] = new HuffmanCodeLengthData(indices[currentElement], 0);
-                currentElement++;
-            }
+        int bitsNumber = maxPower;
+        for (int i = 0; i < diff ; i++) {
             if (currentElement >= codesCounter.length)
                 break;
-            maxElementNumber *= 2;
+            if (codesCounter[indices[currentElement]] != 0)
+                huffmanCodeLengthData[indices[currentElement]] = new HuffmanCodeLengthData(indices[currentElement], bitsNumber);
+            else
+                huffmanCodeLengthData[indices[currentElement]] = new HuffmanCodeLengthData(indices[currentElement], 0);
+            currentElement++;
         }
+        bitsNumber = maxPower + 1;
+        for (int i = 0; i < (int) ((Math.pow(2, maxPower) - diff) * 2) ; i++) {
+            if (currentElement >= codesCounter.length)
+                break;
+            if (codesCounter[indices[currentElement]] != 0)
+                huffmanCodeLengthData[indices[currentElement]] = new HuffmanCodeLengthData(indices[currentElement], bitsNumber);
+            else
+                huffmanCodeLengthData[indices[currentElement]] = new HuffmanCodeLengthData(indices[currentElement], 0);
+            currentElement++;
+        }
+        for (int i = 0; i < codesCounter.length ; i++) {
+            if (currentElement >= codesCounter.length)
+                break;
+            if (codesCounter[indices[currentElement]] != 0)
+                System.out.println("Error - failed to generate Huffman codes");
+            else
+                huffmanCodeLengthData[indices[currentElement]] = new HuffmanCodeLengthData(indices[currentElement], 0);
+            currentElement++;
+        }
+
+//
+//        int maxElementNumber = 4;
+//        for (int bitsNumber = maxPower; bitsNumber <= maxPower+1; bitsNumber++) {
+//            for (int j = 0; j < maxElementNumber; j++) {
+//                if (currentElement >= codesCounter.length)
+//                    break;
+//                if (codesCounter[indices[currentElement]] != 0)
+//                    huffmanCodeLengthData[indices[currentElement]] = new HuffmanCodeLengthData(indices[currentElement], bitsNumber);
+//                else
+//                    huffmanCodeLengthData[indices[currentElement]] = new HuffmanCodeLengthData(indices[currentElement], 0);
+//                currentElement++;
+//            }
+//            if (currentElement >= codesCounter.length)
+//                break;
+//            maxElementNumber *= 2;
+//        }
         return huffmanCodeLengthData;
     }
 
