@@ -26,13 +26,14 @@ public class Deflater {
     private final int BITS_IN_BYTE = 8;
 
     public byte[] compress(byte[] content) {
-        int maxBlockSize = 32768; // 2^15
+        int maxBlockSize = 50000; // 2^13
         FilePosition filePosition = new FilePosition(0, 0);
         int maxBlockHeaderSize = 286 * 8 + 32 + 19;
         int outputSize = 2 * content.length + maxBlockHeaderSize;
         if (content.length < 65000) {
             byte[] output = new byte[outputSize];
-            return compressWithDynamicsHuffmanCodes(content, filePosition, output);
+            boolean isLastBlock = true;
+            return compressWithDynamicsHuffmanCodes(content, filePosition, output, isLastBlock);
         } else {
             int blockNumber = content.length / maxBlockSize;
             if (content.length % maxBlockSize != 0)
@@ -44,10 +45,14 @@ public class Deflater {
             for (int i = 0; i < blockNumber; i++) {
                 int blockSize = Math.min(content.length - processedBytes, maxBlockSize);
                 processedBytes += blockSize;
+                boolean isLastBlock = false;
+                if (content.length - processedBytes == 0)
+                    isLastBlock = true;
                 compressWithDynamicsHuffmanCodes(
                         Arrays.copyOfRange(content, i * maxBlockSize, i * maxBlockSize + blockSize),
                         filePosition,
-                        compressedBlocks);
+                        compressedBlocks,
+                        isLastBlock);
                 compressedOutputBytes = filePosition.getPosition() / BITS_IN_BYTE;
                 if (filePosition.getPosition() % BITS_IN_BYTE != 0)
                     compressedOutputBytes += 1;
@@ -70,12 +75,9 @@ public class Deflater {
     }
 
 
-    private byte[] compressWithStaticsHuffmanCodes(byte[] content, FilePosition filePosition, byte[] output) {
+    private byte[] compressWithStaticsHuffmanCodes(byte[] content, FilePosition filePosition, byte[] output, boolean isLastBlock) {
         BitReader bitReader = new BitReader();
 
-        boolean isLastBlock = false;
-        if (content.length < MAX_BLOCK_SIZE)
-            isLastBlock = true;
         BlockHeader blockHeader = new BlockHeader(isLastBlock, CompressionType.COMPRESSED_WITH_FIXED_HUFFMAN_CODES);
 
         List<Integer> compressedContent = new ArrayList<>();
@@ -88,12 +90,9 @@ public class Deflater {
     }
 
 
-    private byte[] compressWithDynamicsHuffmanCodes(byte[] content, FilePosition filePosition, byte[] output) {
+    private byte[] compressWithDynamicsHuffmanCodes(byte[] content, FilePosition filePosition, byte[] output, boolean isLastBlock) {
         BitReader bitReader = new BitReader();
 
-        boolean isLastBlock = false;
-        if (content.length < MAX_BLOCK_SIZE)
-            isLastBlock = true;
         BlockHeader blockHeader = new BlockHeader(isLastBlock, CompressionType.COMPRESSED_WITH_DYNAMIC_HUFFMAN_CODES);
 
         List<Integer> compressedContent = new ArrayList<>();
