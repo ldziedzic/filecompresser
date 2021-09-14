@@ -6,7 +6,7 @@
 
     <groupId>com.dziedzic</groupId>
     <artifactId>filecompresser</artifactId>
-    <version>1.0-FILE-COMPRESSER</version>
+    <version>1.0</version>
     <build>
         <plugins>
             <plugin>
@@ -28,6 +28,18 @@
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.2.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>com.dziedzic.filecompresser.Main</mainClass>
+                        </manifest>
+                    </archive>
                 </configuration>
             </plugin>
         </plugins>
