@@ -12,6 +12,7 @@ import com.dziedzic.filecompresser.algorithms.deflate.entity.DistanceCodeOutput;
 import com.dziedzic.filecompresser.algorithms.deflate.entity.FilePosition;
 import com.dziedzic.filecompresser.algorithms.deflate.entity.HuffmanCodeLengthData;
 import com.dziedzic.filecompresser.algorithms.deflate.entity.LengthCode;
+import com.dziedzic.filecompresser.zip.Entity.CompressionOutput;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -22,18 +23,18 @@ import java.util.stream.Stream;
 public class Deflater {
 
     private static final int END_OF_BLOCK = 256;
-    private static final int MAX_BLOCK_SIZE = 32768;
     private final int BITS_IN_BYTE = 8;
 
-    public byte[] compress(byte[] content) {
-        int maxBlockSize = 50000; // 2^13
-        FilePosition filePosition = new FilePosition(0, 0);
+    public CompressionOutput compress(byte[] content, byte additionalByte, int additionalBitsNumber, boolean isLastDataSet) {
+        int maxBlockSize = 32768; // 2^15
+        FilePosition filePosition = new FilePosition(0, additionalBitsNumber);
         int maxBlockHeaderSize = 286 * 8 + 32 + 19;
         int outputSize = 2 * content.length + maxBlockHeaderSize;
         if (content.length < 65000) {
             byte[] output = new byte[outputSize];
-            boolean isLastBlock = true;
-            return compressWithDynamicsHuffmanCodes(content, filePosition, output, isLastBlock);
+            if (additionalBitsNumber > 0)
+                output[0] = additionalByte;
+            return new CompressionOutput(compressWithDynamicsHuffmanCodes(content, filePosition, output, isLastDataSet), 0);
         } else {
             int blockNumber = content.length / maxBlockSize;
             if (content.length % maxBlockSize != 0)
@@ -41,19 +42,21 @@ public class Deflater {
             int compressedOutputBytes = 0;
             int processedBytes = 0;
             byte[] compressedBlocks = new byte[outputSize];
+            if (additionalBitsNumber > 0)
+                compressedBlocks[0] = additionalByte;
 
             for (int i = 0; i < blockNumber; i++) {
                 int blockSize = Math.min(content.length - processedBytes, maxBlockSize);
                 processedBytes += blockSize;
                 boolean isLastBlock = false;
-                if (content.length - processedBytes == 0)
+                if (content.length - processedBytes == 0 && isLastDataSet)
                     isLastBlock = true;
                 compressWithDynamicsHuffmanCodes(
                         Arrays.copyOfRange(content, i * maxBlockSize, i * maxBlockSize + blockSize),
                         filePosition,
                         compressedBlocks,
                         isLastBlock);
-                compressedOutputBytes = filePosition.getPosition() / BITS_IN_BYTE;
+                compressedOutputBytes = (int) (filePosition.getPosition() / BITS_IN_BYTE);
                 if (filePosition.getPosition() % BITS_IN_BYTE != 0)
                     compressedOutputBytes += 1;
             }
@@ -61,7 +64,7 @@ public class Deflater {
             byte[] output  = new byte[compressedOutputBytes];
             if (compressedOutputBytes >= 0)
                 System.arraycopy(compressedBlocks, 0, output, 0, compressedOutputBytes);
-            return output;
+            return new CompressionOutput(output, (int) (filePosition.getPosition() % BITS_IN_BYTE));
         }
     }
 
@@ -139,7 +142,7 @@ public class Deflater {
                     huffmanLengthCode.huffmanCode);
             filePosition.increasePosition(huffmanLengthCode.bitsNumber);
         }
-        int endPosition = filePosition.getPosition() / BITS_IN_BYTE;
+        int endPosition = (int) (filePosition.getPosition() / BITS_IN_BYTE);
         if (filePosition.getPosition() % BITS_IN_BYTE != 0)
             endPosition++;
         return Arrays.copyOfRange(output, 0, endPosition); //invalid
@@ -325,10 +328,10 @@ public class Deflater {
             System.out.println("Error - invalid value for offset in block without compression");
         if (blockSize + complementSize != 65535)
             System.out.println("Error - invalid value for block size in block without compression");
-        System.arraycopy(content, filePosition.getOffset() / BITS_IN_BYTE, output, filePosition.getPosition(), blockSize);
+        System.arraycopy(content, filePosition.getOffset() / BITS_IN_BYTE, output, (int) filePosition.getPosition(), blockSize);
 
         for (int i = 0; i < blockSize; i++) {
-            output[filePosition.getPosition()] = content[filePosition.getOffset() / BITS_IN_BYTE];
+            output[(int) filePosition.getPosition()] = content[filePosition.getOffset() / BITS_IN_BYTE];
             filePosition.increasePosition(1);
             filePosition.increaseOffset(BITS_IN_BYTE);
         }
@@ -337,7 +340,7 @@ public class Deflater {
     }
 
     private void copyByteToOutputStream(byte[] output, FilePosition filePosition, HuffmanCodeLengthData huffmanLengthCode) {
-        output[filePosition.getPosition()] = (byte) huffmanLengthCode.getIndex();
+        output[(int) filePosition.getPosition()] = (byte) huffmanLengthCode.getIndex();
         filePosition.increasePosition(1);
     }
 
@@ -350,11 +353,11 @@ public class Deflater {
                 getDistance(content, bitReader, codeTreesRepresener, filePosition.getOffset());
         filePosition.setOffset(distanceCodeOutput.getOffset());
 
-        int copyPosition = filePosition.getPosition() - distanceCodeOutput.getDistance();
+        int copyPosition = (int) (filePosition.getPosition() - distanceCodeOutput.getDistance());
 
 
         for (int i = 0; i < lengthCode.getLength() + additionalLength; i++) {
-            output[filePosition.getPosition()] = output[copyPosition];
+            output[(int) filePosition.getPosition()] = output[copyPosition];
             copyPosition++;
             filePosition.increasePosition(1);
         }

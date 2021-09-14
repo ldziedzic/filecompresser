@@ -37,14 +37,14 @@ public class BitReader {
         return Integer.parseInt(bitSetString, 2);
     }
 
-    public byte[] setBits(byte[] content, int offset, int bitsNumber, int newBitsInt) {
+    public byte[] setBits(byte[] content, long offset, int bitsNumber, int newBitsInt) {
         String binaryString = Integer.toBinaryString(newBitsInt);
 
-        int bytesNumer = (bitsNumber + BITS_IN_BYTE - (offset +bitsNumber) % BITS_IN_BYTE) / BITS_IN_BYTE;
+        int bytesNumer = (int) ((bitsNumber + BITS_IN_BYTE - (offset +bitsNumber) % BITS_IN_BYTE) / BITS_IN_BYTE);
         if ((offset + bitsNumber + BITS_IN_BYTE - bitsNumber % BITS_IN_BYTE) % BITS_IN_BYTE != 0) {
             bytesNumer++;
         }
-        int additionalBits = offset % BITS_IN_BYTE + bitsNumber - binaryString.length();
+        int additionalBits = (int) (offset % BITS_IN_BYTE + bitsNumber - binaryString.length());
         int shiftBits = bytesNumer * BITS_IN_BYTE - binaryString.length() - additionalBits;
 
         char[] additionalBitsChars = new char[additionalBits];
@@ -72,16 +72,16 @@ public class BitReader {
 
         byte[] bytes = toByteArray(bitset);
         for (int i = 0; i < bytes.length; i++) {
-            content[offset / BITS_IN_BYTE + additionalBits / BITS_IN_BYTE + i] = (byte) (content[offset / BITS_IN_BYTE + additionalBits / BITS_IN_BYTE + i] | bytes[i]);
+            content[(int) (offset / BITS_IN_BYTE + additionalBits / BITS_IN_BYTE + i)] = (byte) (content[(int) (offset / BITS_IN_BYTE + additionalBits / BITS_IN_BYTE + i)] | bytes[i]);
         }
         return content;
     }
 
 
-    public byte[] setBitsLittleEndian(byte[] content, int offset, int bitsNumber, int newBitsInt) {
+    public byte[] setBitsLittleEndian(byte[] content, long offset, int bitsNumber, int newBitsInt) {
         String binaryString = Integer.toBinaryString(newBitsInt << (offset % BITS_IN_BYTE));
 
-        int bytesNumer = (bitsNumber + BITS_IN_BYTE - (offset +bitsNumber) % BITS_IN_BYTE) / BITS_IN_BYTE;
+        int bytesNumer = (int) ((bitsNumber + BITS_IN_BYTE - (offset +bitsNumber) % BITS_IN_BYTE) / BITS_IN_BYTE);
         if ((offset + bitsNumber + BITS_IN_BYTE - bitsNumber % BITS_IN_BYTE) % BITS_IN_BYTE != 0) {
             bytesNumer++;
         }
@@ -121,7 +121,7 @@ public class BitReader {
         }
         additionalOffset = additionalOffset / BITS_IN_BYTE;
         for (int i = 0; i < bytes.length; i++) {
-            content[offset / BITS_IN_BYTE + additionalOffset+ i] = (byte) (content[offset / BITS_IN_BYTE + additionalOffset + i] | bytes[i]);
+            content[(int) (offset / BITS_IN_BYTE + additionalOffset+ i)] = (byte) (content[(int) (offset / BITS_IN_BYTE + additionalOffset + i)] | bytes[i]);
         }
         return content;
     }

@@ -5,12 +5,15 @@ package com.dziedzic.filecompresser.zip;/*
  */
 
 import com.dziedzic.filecompresser.algorithms.deflate.Deflater;
+import com.dziedzic.filecompresser.zip.Entity.CompressionOutput;
 import com.dziedzic.filecompresser.zip.Entity.FileData;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -40,6 +43,13 @@ public class Zip {
         int fileIndex = 0;
         int outputSize = 0;
         FileData[] fileData = new FileData[paths.size()];
+
+        File fileToRemove = new File(path + ".zip.tmp");
+        fileToRemove.delete();
+        fileToRemove = new File(path + "2.zip");
+        fileToRemove.delete();
+
+
         for (Path filePath: paths) {
 
             fileData[fileIndex] = getFileAttributes(dirPath, filePath);
@@ -48,18 +58,60 @@ public class Zip {
             CRC32 crc32 = generateCRC32Checksum(content);
             fileData[fileIndex].setCrc32Checksum((int) crc32.getValue());
 
-            Deflater deflater = new Deflater();
-            byte [] compressedContent = deflater.compress(content);
-            fileData[fileIndex].setCompressedSize(compressedContent.length);
+            int maxBytesToProcess = 1 * 1024 * 1024; // 10 MB
+            int blocksNumber = content.length / maxBytesToProcess;
+            if (content.length % maxBytesToProcess != 0)
+                blocksNumber++;
+            int compressedSize = 0;
+
+            Path temp = null;
+            try {
+                temp = Files.createTempFile(filePath.getFileName().toString(), ".tmp");
+            }catch (IOException e) {
+
+            }
+
+            byte additionalByte = 0;
+            int additionalBits = 0;
+
+            int processedBytes = 0;
+            for (int i = 0; i < blocksNumber; i++) {
+                int blockSize = Math.min(maxBytesToProcess, content.length - processedBytes);
+                boolean isLastDataSet = false;
+                if (content.length - processedBytes - blockSize == 0)
+                    isLastDataSet = true;
+                Deflater deflater = new Deflater();
+                CompressionOutput compressionOutput = deflater.compress(Arrays.copyOfRange(content, i * maxBytesToProcess, i * maxBytesToProcess + blockSize),
+                        additionalByte, additionalBits, isLastDataSet);
+
+                additionalBits = compressionOutput.getAdditionalBits();
+                additionalByte = compressionOutput.getContent()[compressionOutput.getContent().length-1];
+                int endPosition = compressionOutput.getContent().length;
+                if (additionalBits > 0 && !isLastDataSet)
+                    endPosition--;
+
+                writeFile(Paths.get(String.valueOf(temp)).toString(), Arrays.copyOfRange(compressionOutput.getContent(), 0, endPosition));
+
+                processedBytes += blockSize;
+            }
+
+            byte[] compressedContent = readFile(temp.toString());
+            compressedSize = compressedContent.length;
+            fileData[fileIndex].setCompressedSize(compressedSize);
 
             byte[] header = generateFileHeader(fileData[fileIndex]);
+            writeFile(path + ".zip.tmp", header);
 
-            output[fileIndex] = new byte[header.length + compressedContent.length];
+            writeFile(path + ".zip.tmp", compressedContent);
+            fileToRemove = new File(temp.toString());
+            fileToRemove.delete();
+
+            output[fileIndex] = new byte[header.length + compressedSize];
             System.arraycopy(header, 0, output[fileIndex], 0, header.length);
-            System.arraycopy(compressedContent, 0, output[fileIndex], header.length, compressedContent.length);
+            System.arraycopy(compressedContent, 0, output[fileIndex], header.length, compressedSize);
             System.out.println("Successfully compressed " + fileData[fileIndex].getFilename());
             fileData[fileIndex].setOffset(outputSize);
-            outputSize += header.length + compressedContent.length;
+            outputSize += header.length + compressedSize;
             fileIndex++;
         }
 
@@ -81,17 +133,17 @@ public class Zip {
 
         int endOfCentralDirectoryHeaderSize = 22;
         byte[] outputFile = new byte[outputSize + centralDirectoryHeaderSize + endOfCentralDirectoryHeaderSize];
-        int outputPosition = 0;
+        long outputPosition = 0;
         for (int i = 0; i < paths.size(); i++) {
             for (int j = 0; j < output[i].length; j++) {
-                outputFile[outputPosition] = output[i][j];
+                outputFile[(int) outputPosition] = output[i][j];
                 outputPosition++;
             }
         }
-        int centralDirectoryStartPosition = outputPosition;
+        int centralDirectoryStartPosition = (int) outputPosition;
         for (int i = 0; i < paths.size(); i++) {
             for (int j = 0; j < centralDirectoryHeaders[i].length; j++) {
-                outputFile[outputPosition] = centralDirectoryHeaders[i][j];
+                outputFile[(int) outputPosition] = centralDirectoryHeaders[i][j];
                 outputPosition++;
             }
         }
@@ -236,11 +288,13 @@ public class Zip {
 
     private void writeFile(String path, byte[] output) {
         try {
-            Files.write(Paths.get(path), output);
-            System.out.println("Successfully compressed " + path);
+            Files.write(Paths.get(path), output, StandardOpenOption.APPEND);
         } catch (IOException e) {
-            System.out.println("Failed to compress " + path);
-            e.printStackTrace();
+            try {
+                Files.write(Paths.get(path), output);
+            } catch (IOException ioException) {
+                ioException.printStackTrace();
+            }
         }
     }
 }

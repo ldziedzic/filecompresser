@@ -6,9 +6,9 @@ package com.dziedzic.filecompresser.algorithms.deflate.entity;/*
 
 public class FilePosition {
     private int offset;
-    private int position;
+    private long position;
 
-    public FilePosition(int offset, int position) {
+    public FilePosition(int offset, long position) {
         this.offset = offset;
         this.position = position;
     }
@@ -25,7 +25,7 @@ public class FilePosition {
         this.offset = offset;
     }
 
-    public int getPosition() {
+    public long getPosition() {
         return position;
     }
 

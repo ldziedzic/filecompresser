@@ -78,7 +78,7 @@ public class ZipHeaderUtils {
     }
 
 
-    void setEndOfCentralDirectory(byte[] output, int offset, int filesNumber, int centralDirectorySize,
+    void setEndOfCentralDirectory(byte[] output, long offset, int filesNumber, int centralDirectorySize,
                                   int centralDirectoryStartPosition) {
         BitReader bitReader = new BitReader();
         for (byte element : END_OF_CENTRAL_DIRECTORY_SIGNATURE) {

@@ -83,7 +83,7 @@ public class CodeTreesRepresener {
             indices[i] = i;
         }
 
-        Arrays.sort(indices, new Comparator<Integer>() {
+        Arrays.parallelSort(indices, new Comparator<Integer>() {
 
             public int compare(Integer i1, Integer i2) {
                 return codesCounter[i2].compareTo(codesCounter[i1]);
@@ -304,19 +304,19 @@ public class CodeTreesRepresener {
     }
 
 
-    byte[] setLiteralLengthAlphabetLength(int value, byte[] output, int offset) {
+    byte[] setLiteralLengthAlphabetLength(int value, byte[] output, long offset) {
         BitReader bitReader = new BitReader();
 
         return bitReader.setBitsLittleEndian(output, offset, 5, value - 257);
     }
 
-    byte[] setDistanceAlphabetLength(int value, byte[] output, int offset) {
+    byte[] setDistanceAlphabetLength(int value, byte[] output, long offset) {
         BitReader bitReader = new BitReader();
 
         return bitReader.setBitsLittleEndian(output, offset, 5, value - 1);
     }
 
-    byte[] setCodeAlphabetLength(int value, byte[] output, int offset) {
+    byte[] setCodeAlphabetLength(int value, byte[] output, long offset) {
         BitReader bitReader = new BitReader();
 
         return bitReader.setBitsLittleEndian(output, offset, 4, value - 4);
