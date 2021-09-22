@@ -112,29 +112,9 @@ public class Deflater {
                 int maxMatchedElements = 0;
                 int indexOfMatchedSubstring = 0;
                 if (hashDictionary.containsKey(key)) {
-                    int j = 0;
-                    for (Integer element : hashDictionary.get(key)) {
-                        int positionFromDictionary = element;
-                        int positionFromContent = i;
-                        int matchedElements = 0;
-
-                        int maxElementToSearch = 10000;
-                        if (j >= maxElementToSearch)
-                            break;
-
-                        int maxLength = 257; // RFC1951 limit
-                        while (positionFromContent < content.length && content[positionFromContent] == content[positionFromDictionary] && matchedElements < maxLength) {
-                            positionFromContent++;
-                            positionFromDictionary++;
-                            matchedElements++;
-
-                        }
-                        if (matchedElements > maxMatchedElements) {
-                            maxMatchedElements = matchedElements;
-                            indexOfMatchedSubstring = element;
-                        }
-                        j++;
-                    }
+                    RepeatedElementFinder repeatedElementFinder = new RepeatedElementFinder(content, hashDictionary, i, key, maxMatchedElements, indexOfMatchedSubstring).invoke();
+                    maxMatchedElements = repeatedElementFinder.getMaxMatchedElements();
+                    indexOfMatchedSubstring = repeatedElementFinder.getIndexOfMatchedSubstring();
 
                     LengthCode lengthCode = codeTreesRepresener.findLengthCodeByLength(maxMatchedElements);
                     DistanceCode distanceCode = codeTreesRepresener.findDistanceCode(i - indexOfMatchedSubstring);
@@ -148,8 +128,6 @@ public class Deflater {
 
                 }
 
-
-
                 i += maxMatchedElements;
                 if (i >= content.length)
                     continue;
@@ -160,20 +138,10 @@ public class Deflater {
             }
 
 
-            compressedContent.add(new LZ77Output(((int) content[i]) & 0x0ff, 0, 0)); // change this line to LZ77 compression
+            compressedContent.add(new LZ77Output(((int) content[i]) & 0x0ff, 0, 0));
         }
-//        for (int i = 0; i < compressedContent.size(); i++) {
-//            if (compressedContent.get(i).getCode() < 256)
-//                System.out.print((char)compressedContent.get(i).getCode());
-//            else {
-//                System.out.print("<<" + compressedContent.get(i).getCode() + ", ");
-//                System.out.print(compressedContent.get(i+1).getCode() + ">>");
-//                i++;
-//            }
-//        }
 
         compressedContent.add(new LZ77Output(END_OF_BLOCK, 0, 0));
-
         return compressedContent;
     }
 
@@ -476,4 +444,5 @@ public class Deflater {
 
         return new BlockHeader(isLastBlock > 0, compressionType);
     }
+
 }
