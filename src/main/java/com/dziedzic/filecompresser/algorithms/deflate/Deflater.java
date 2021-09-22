@@ -5,14 +5,10 @@ package com.dziedzic.filecompresser.algorithms.deflate;/*
  */
 
 import com.dziedzic.filecompresser.algorithms.deflate.common.BitReader;
-import com.dziedzic.filecompresser.algorithms.deflate.entity.BlockHeader;
-import com.dziedzic.filecompresser.algorithms.deflate.entity.CompressionType;
-import com.dziedzic.filecompresser.algorithms.deflate.entity.DistanceCode;
-import com.dziedzic.filecompresser.algorithms.deflate.entity.DistanceCodeOutput;
-import com.dziedzic.filecompresser.algorithms.deflate.entity.FilePosition;
-import com.dziedzic.filecompresser.algorithms.deflate.entity.HuffmanCodeLengthData;
-import com.dziedzic.filecompresser.algorithms.deflate.entity.LengthCode;
+import com.dziedzic.filecompresser.algorithms.deflate.entity.*;
 import com.dziedzic.filecompresser.zip.Entity.CompressionOutput;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Multimap;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -83,11 +79,7 @@ public class Deflater {
 
         BlockHeader blockHeader = new BlockHeader(isLastBlock, CompressionType.COMPRESSED_WITH_FIXED_HUFFMAN_CODES);
 
-        List<Integer> compressedContent = new ArrayList<>();
-        for (int i = 0; i < content.length; i++) {
-            compressedContent.add((((int) content[i]) & 0x0ff)); // change this line to LZ77 compression
-        }
-        compressedContent.add(END_OF_BLOCK);
+        List<LZ77Output> compressedContent = performLZ77compression(content);
 
         return writeHuffmanCodes(content, filePosition, output, bitReader, isLastBlock, blockHeader, compressedContent);
     }
@@ -98,54 +90,142 @@ public class Deflater {
 
         BlockHeader blockHeader = new BlockHeader(isLastBlock, CompressionType.COMPRESSED_WITH_DYNAMIC_HUFFMAN_CODES);
 
-        List<Integer> compressedContent = new ArrayList<>();
-        for (int i = 0; i < content.length; i++) {
-            compressedContent.add((((int) content[i]) & 0x0ff)); // change this line to LZ77 compression
-        }
-        compressedContent.add(END_OF_BLOCK);
+        List<LZ77Output> compressedContent = performLZ77compression(content);
+
 
         return writeHuffmanCodes(content, filePosition, output, bitReader, isLastBlock, blockHeader, compressedContent);
     }
 
-
-    private byte[] writeHuffmanCodes(byte[] content, FilePosition filePosition, byte[] output, BitReader bitReader,
-                                     boolean isLastBlock, BlockHeader blockHeader, List<Integer> compressedContent) {
+    private List<LZ77Output> performLZ77compression(byte[] content) {
+        List<LZ77Output> compressedContent = new ArrayList<>();
         CodeTreesRepresener codeTreesRepresener =
-                new CodeTreesRepresener(content, blockHeader, filePosition.getOffset());
-        codeTreesRepresener.generateCodeTreesRepresentation(compressedContent);
+                new CodeTreesRepresener(content);
+        codeTreesRepresener.generateStaticDistanceCodes();
+        codeTreesRepresener.generateStaticLengthCodes();
 
-        HuffmanCodeLengthData[] compressedHuffmanCodes = new HuffmanCodeLengthData[compressedContent.size()];
-        int compressedHuffmanCodesPosition;
-        for (compressedHuffmanCodesPosition = 0;
-             compressedHuffmanCodesPosition < compressedContent.size();
-             compressedHuffmanCodesPosition++) {
-            for (HuffmanCodeLengthData huffmanLengthCode : codeTreesRepresener.getHuffmanLengthCodes()) {
-                if (huffmanLengthCode.getIndex() == compressedContent.get(compressedHuffmanCodesPosition)) {
-                    compressedHuffmanCodes[compressedHuffmanCodesPosition] = huffmanLengthCode;
+
+        Multimap<Integer, Integer> hashDictionary = HashMultimap.create();
+
+        for (int i = 0; i < content.length; i++) {
+            if (i >= 5 && i + 2 < content.length) {
+                int key = (int)content[i] * 100000 + (int)content[i + 1] * 1000 + (int)content[i + 2];
+                int maxMatchedElements = 0;
+                int indexOfMatchedSubstring = 0;
+                if (hashDictionary.containsKey(key)) {
+                    int j = 0;
+                    for (Integer element : hashDictionary.get(key)) {
+                        int positionFromDictionary = element;
+                        int positionFromContent = i;
+                        int matchedElements = 0;
+
+                        int maxElementToSearch = 10000;
+                        if (j >= maxElementToSearch)
+                            break;
+
+                        int maxLength = 257; // RFC1951 limit
+                        while (positionFromContent < content.length && content[positionFromContent] == content[positionFromDictionary] && matchedElements < maxLength) {
+                            positionFromContent++;
+                            positionFromDictionary++;
+                            matchedElements++;
+
+                        }
+                        if (matchedElements > maxMatchedElements) {
+                            maxMatchedElements = matchedElements;
+                            indexOfMatchedSubstring = element;
+                        }
+                        j++;
+                    }
+
+                    LengthCode lengthCode = codeTreesRepresener.findLengthCodeByLength(maxMatchedElements);
+                    DistanceCode distanceCode = codeTreesRepresener.findDistanceCode(i - indexOfMatchedSubstring);
+                    if (lengthCode != null && distanceCode != null) {
+                        compressedContent.add(new LZ77Output(lengthCode.getCode(), lengthCode.getExtraBits(), maxMatchedElements - lengthCode.getLength()));
+                        compressedContent.add(new LZ77Output(distanceCode.getCode(), distanceCode.getExtraBits(),
+                                i - indexOfMatchedSubstring - distanceCode.getDistance(), distanceCode.getBitsNumber(), true));
+                    } else {
+                        maxMatchedElements = 0;
+                    }
+
                 }
+
+
+
+                i += maxMatchedElements;
+                if (i >= content.length)
+                    continue;
             }
+            if (i >= 2) {
+                int key = (int)content[i - 2] * 1000000 + (int)content[i - 1] * 10000 + (int)content[i];
+                hashDictionary.put(key, i - 2);
+            }
+
+
+            compressedContent.add(new LZ77Output(((int) content[i]) & 0x0ff, 0, 0)); // change this line to LZ77 compression
         }
-//        for (HuffmanCodeLengthData huffmanLengthCode: codeTreesRepresener.getHuffmanLengthCodes()) {
-//            if (huffmanLengthCode.getIndex() == END_OF_BLOCK) {
-//                compressedHuffmanCodes[compressedHuffmanCodesPosition] = huffmanLengthCode;
-//                compressedHuffmanCodesPosition++;
+//        for (int i = 0; i < compressedContent.size(); i++) {
+//            if (compressedContent.get(i).getCode() < 256)
+//                System.out.print((char)compressedContent.get(i).getCode());
+//            else {
+//                System.out.print("<<" + compressedContent.get(i).getCode() + ", ");
+//                System.out.print(compressedContent.get(i+1).getCode() + ">>");
+//                i++;
 //            }
 //        }
+
+        compressedContent.add(new LZ77Output(END_OF_BLOCK, 0, 0));
+
+        return compressedContent;
+    }
+
+
+    private byte[] writeHuffmanCodes(byte[] content, FilePosition filePosition, byte[] output, BitReader bitReader,
+                                     boolean isLastBlock, BlockHeader blockHeader, List<LZ77Output> compressedContent) {
+        List<Integer> compressedContentCodes = new ArrayList<>();
+        for (LZ77Output lz77Output : compressedContent) {
+            compressedContentCodes.add(lz77Output.getCode());
+        }
+
+        CodeTreesRepresener codeTreesRepresener =
+                new CodeTreesRepresener(content, blockHeader, filePosition.getOffset());
+        codeTreesRepresener.generateCodeTreesRepresentation(compressedContentCodes);
+
+        for (int i = 0; i < compressedContent.size(); i++) {
+            if (!compressedContent.get(i).isDistanceCode()) {
+                for (HuffmanCodeLengthData huffmanLengthCode : codeTreesRepresener.getHuffmanLengthCodes()) {
+                    if (huffmanLengthCode.getIndex() == compressedContentCodes.get(i)) {
+                        compressedContent.get(i).setBitsNumber(huffmanLengthCode.bitsNumber);
+                        compressedContent.get(i).setHuffmanCode(huffmanLengthCode.huffmanCode);
+                    }
+                }
+            }
+
+        }
+
 
         output = writeBlockHeader(output, filePosition, isLastBlock, blockHeader);
         if (blockHeader.getCompressionType() == CompressionType.COMPRESSED_WITH_DYNAMIC_HUFFMAN_CODES) {
             output = writeHeaderForDynamicsHuffmanCodes(filePosition, output, bitReader, codeTreesRepresener);
 
         }
-        for (HuffmanCodeLengthData huffmanLengthCode: compressedHuffmanCodes) {
-            output = bitReader.setBits(output, filePosition.getPosition(), huffmanLengthCode.bitsNumber,
-                    huffmanLengthCode.huffmanCode);
-            filePosition.increasePosition(huffmanLengthCode.bitsNumber);
+        for (LZ77Output huffmanLengthCode: compressedContent) {
+            if (huffmanLengthCode.isDistanceCode()) {
+                output = bitReader.setBits(output, filePosition.getPosition(), huffmanLengthCode.getBitsNumber(),
+                        huffmanLengthCode.getCode());
+            } else {
+                output = bitReader.setBits(output, filePosition.getPosition(), huffmanLengthCode.getBitsNumber(),
+                        huffmanLengthCode.getHuffmanCode());
+            }
+            filePosition.increasePosition(huffmanLengthCode.getBitsNumber());
+            if (huffmanLengthCode.getExtraBits() > 0) {
+                output = bitReader.setBitsLittleEndian(output, filePosition.getPosition(), huffmanLengthCode.getExtraBits(),
+                        huffmanLengthCode.getAdditionalValue());
+                filePosition.increasePosition(huffmanLengthCode.getExtraBits());
+            }
         }
         int endPosition = (int) (filePosition.getPosition() / BITS_IN_BYTE);
         if (filePosition.getPosition() % BITS_IN_BYTE != 0)
             endPosition++;
-        return Arrays.copyOfRange(output, 0, endPosition); //invalid
+        return Arrays.copyOfRange(output, 0, endPosition);
     }
 
     private byte[] writeHeaderForDynamicsHuffmanCodes(FilePosition filePosition, byte[] output, BitReader bitReader, CodeTreesRepresener codeTreesRepresener) {
@@ -301,6 +381,7 @@ public class Deflater {
                 filePosition.increaseOffset(bitsNumber);
                 if (huffmanLengthCode.getIndex() < END_OF_BLOCK) {
                     copyByteToOutputStream(output, filePosition, huffmanLengthCode);
+                    System.out.print((char)huffmanLengthCode.index);
                 }
                 else if (huffmanLengthCode.getIndex() == END_OF_BLOCK)
                     endOfBlock = true;

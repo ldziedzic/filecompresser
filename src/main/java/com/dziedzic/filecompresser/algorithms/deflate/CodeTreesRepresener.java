@@ -47,6 +47,17 @@ public class CodeTreesRepresener {
         distanceCodesByBitsNumber = new ArrayList<>();
     }
 
+    CodeTreesRepresener(byte[] blockContent) {
+        this.blockContent = blockContent;
+        smallestHuffmanLength = 0;
+        biggestHuffmanLength = 0;
+        distanceCodes = new ArrayList<>();
+        lengthCodes = new ArrayList<>();
+        huffmanLengthCodes = new ArrayList<>();
+        huffmanLengthCodesByBitsNumber = new ArrayList<>();
+        distanceCodesByBitsNumber = new ArrayList<>();
+    }
+
     void generateCodeTreesRepresentation(List<Integer> compressedContent) {
         if (blockHeader.getCompressionType() == CompressionType.COMPRESSED_WITH_DYNAMIC_HUFFMAN_CODES) {
             huffmanLengthCodes = Arrays.asList(initializeHuffmanCodeLengthData(compressedContent));
@@ -174,6 +185,22 @@ public class CodeTreesRepresener {
         for (LengthCode lengthCode : lengthCodes) {
             if (lengthCode.getCode() == code)
                 return lengthCode;
+        }
+        return null;
+    }
+
+    LengthCode findLengthCodeByLength(int length) {
+        for (LengthCode lengthCode : lengthCodes) {
+            if (lengthCode.getLength() <= length && lengthCode.getLength() + Math.pow(2, lengthCode.getExtraBits()) > length)
+                return lengthCode;
+        }
+        return null;
+    }
+
+    DistanceCode findDistanceCode(int distance) {
+        for (DistanceCode distanceCode : distanceCodes) {
+            if (distanceCode.getDistance() <= distance && distanceCode.getDistance() + Math.pow(2, distanceCode.getExtraBits()) > distance)
+                return distanceCode;
         }
         return null;
     }
@@ -501,7 +528,7 @@ public class CodeTreesRepresener {
         }
     }
 
-    private void generateStaticLengthCodes() {
+    public void generateStaticLengthCodes() {
         lengthCodes.add(new LengthCode(	257,0,3));
         lengthCodes.add(new LengthCode(	258,0,4));
         lengthCodes.add(new LengthCode(	259,0,5));
@@ -550,7 +577,7 @@ public class CodeTreesRepresener {
         }
     }
 
-    private void generateStaticDistanceCodes() {
+    public void generateStaticDistanceCodes() {
         distanceCodes = getStaticDistanceCodes();
 
         biggestDistanceCodeLength = 5;
