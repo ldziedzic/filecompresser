@@ -360,7 +360,7 @@ public class CodeTreesRepresener {
         return huffmanCodeLengthDataList;
     }
 
-    private int getCodeLengthIndex(int position) {
+    public int getCodeLengthIndex(int position) {
         switch (position) {
             case 0:
                 return 16;

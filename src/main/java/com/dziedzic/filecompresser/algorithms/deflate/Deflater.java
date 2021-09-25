@@ -24,7 +24,13 @@ public class Deflater {
         FilePosition filePosition = new FilePosition(0, additionalBitsNumber);
         int maxBlockHeaderSize = 286 * 8 + 32 + 19;
         int outputSize = 2 * content.length + maxBlockHeaderSize;
-        if (content.length < 65000) {
+
+        if (content.length < 512) {
+            byte[] output = new byte[outputSize];
+            if (additionalBitsNumber > 0)
+                output[0] = additionalByte;
+            return new CompressionOutput(compressWithStaticsHuffmanCodes(content, filePosition, output, isLastDataSet), 0);
+        } else if (content.length < 65000) {
             byte[] output = new byte[outputSize];
             if (additionalBitsNumber > 0)
                 output[0] = additionalByte;
@@ -217,7 +223,13 @@ public class Deflater {
                         Arrays.copyOfRange(
                                 codeTreesRepresener.initializeHuffmanCodeLengthData(headerHuffmanLengthCodes), 0, 19));
 
-        int codeAlphabetLength = 18;
+        int codeAlphabetLength = 0;
+        for (int i = 0; i < compressedHeaderHuffmanCodes.size(); i++) {
+            if (compressedHeaderHuffmanCodes.get(i).bitsNumber > 0) {
+                if (codeTreesRepresener.getCodeLengthIndex(i) > codeAlphabetLength)
+                    codeAlphabetLength = codeTreesRepresener.getCodeLengthIndex(i);
+            }
+        }
         output = copyAlphabetsLengthsToOutput(filePosition, output, codeTreesRepresener, distanceCodesNumber, literalLengthAlphabetLength, codeAlphabetLength);
 
         output = codeTreesRepresener.writeHeaderHuffmanCodeAlphabet(compressedHeaderHuffmanCodes, output, filePosition, codeAlphabetLength);
