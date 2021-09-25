@@ -18,9 +18,11 @@ public class Deflater {
 
     private static final int END_OF_BLOCK = 256;
     private final int BITS_IN_BYTE = 8;
+    private final int MAX_BLOCK_SIZE = 32768;
 
-    public CompressionOutput compress(byte[] content, byte additionalByte, int additionalBitsNumber, boolean isLastDataSet) {
-        int maxBlockSize = 32768; // 2^15
+    public CompressionOutput compress(byte[] content, byte additionalByte, int additionalBitsNumber, boolean isLastDataSet, String huffmanCodesMode, int maxBlockSize) {
+        if (maxBlockSize > MAX_BLOCK_SIZE)
+            maxBlockSize = MAX_BLOCK_SIZE;
         FilePosition filePosition = new FilePosition(0, additionalBitsNumber);
         int maxBlockHeaderSize = 286 * 8 + 32 + 19;
         int outputSize = 2 * content.length + maxBlockHeaderSize;
@@ -34,6 +36,8 @@ public class Deflater {
             byte[] output = new byte[outputSize];
             if (additionalBitsNumber > 0)
                 output[0] = additionalByte;
+            if (huffmanCodesMode.equals("static"))
+                return new CompressionOutput(compressWithStaticsHuffmanCodes(content, filePosition, output, isLastDataSet), 0);
             return new CompressionOutput(compressWithDynamicsHuffmanCodes(content, filePosition, output, isLastDataSet), 0);
         } else {
             int blockNumber = content.length / maxBlockSize;
@@ -51,11 +55,18 @@ public class Deflater {
                 boolean isLastBlock = false;
                 if (content.length - processedBytes == 0 && isLastDataSet)
                     isLastBlock = true;
-                compressWithDynamicsHuffmanCodes(
-                        Arrays.copyOfRange(content, i * maxBlockSize, i * maxBlockSize + blockSize),
-                        filePosition,
-                        compressedBlocks,
-                        isLastBlock);
+                if (huffmanCodesMode.equals("static"))
+                    compressWithStaticsHuffmanCodes(
+                            Arrays.copyOfRange(content, i * maxBlockSize, i * maxBlockSize + blockSize),
+                            filePosition,
+                            compressedBlocks,
+                            isLastBlock);
+                else
+                    compressWithDynamicsHuffmanCodes(
+                            Arrays.copyOfRange(content, i * maxBlockSize, i * maxBlockSize + blockSize),
+                            filePosition,
+                            compressedBlocks,
+                            isLastBlock);
                 compressedOutputBytes = (int) (filePosition.getPosition() / BITS_IN_BYTE);
                 if (filePosition.getPosition() % BITS_IN_BYTE != 0)
                     compressedOutputBytes += 1;

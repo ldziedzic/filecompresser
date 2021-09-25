@@ -22,10 +22,10 @@ import java.util.stream.Stream;
 import java.util.zip.CRC32;
 
 public class Zip {
-    public void start(String compressionType, String path) {
+    public void start(String compressionType, String path, String huffmanCodesMode, int maxBlockSize) {
         switch (compressionType) {
             case "compress":
-                compressDirectory(path);
+                compressDirectory(path, huffmanCodesMode, maxBlockSize);
                 break;
             case "decompress":
                 readZipFile(path);
@@ -36,7 +36,7 @@ public class Zip {
         }
     }
 
-    private void compressDirectory(String path) {
+    private void compressDirectory(String path, String huffmanCodesMode, int maxBlockSize) {
         Path dirPath = Paths.get(path);
         List<Path> paths = readFileListToCompress(path);
         byte[][] output = new byte[paths.size()][];
@@ -82,7 +82,7 @@ public class Zip {
                     isLastDataSet = true;
                 Deflater deflater = new Deflater();
                 CompressionOutput compressionOutput = deflater.compress(Arrays.copyOfRange(content, i * maxBytesToProcess, i * maxBytesToProcess + blockSize),
-                        additionalByte, additionalBits, isLastDataSet);
+                        additionalByte, additionalBits, isLastDataSet, huffmanCodesMode, maxBlockSize);
 
                 additionalBits = compressionOutput.getAdditionalBits();
                 additionalByte = compressionOutput.getContent()[compressionOutput.getContent().length-1];
