@@ -7,10 +7,7 @@ package com.dziedzic.filecompresser.algorithms.deflate;/*
 import com.dziedzic.filecompresser.algorithms.deflate.common.BitReader;
 import com.dziedzic.filecompresser.algorithms.deflate.entity.*;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 import static java.lang.Math.max;
 
@@ -58,21 +55,29 @@ public class CodeTreesRepresener {
         distanceCodesByBitsNumber = new ArrayList<>();
     }
 
-    void generateCodeTreesRepresentation(List<Integer> compressedContent) {
+    void generateCodeTreesRepresentation(List<Integer> compressedLengthCodes, Set<Integer> compressedDistanceCodesSet) {
         if (blockHeader.getCompressionType() == CompressionType.COMPRESSED_WITH_DYNAMIC_HUFFMAN_CODES) {
-            huffmanLengthCodes = Arrays.asList(initializeHuffmanCodeLengthData(compressedContent));
+            huffmanLengthCodes = Arrays.asList(initializeHuffmanCodeLengthData(compressedLengthCodes));
             generateDynamicsHuffmanLengthCodes(huffmanLengthCodes);
             generateStaticLengthCodes();
 
-            List<HuffmanCodeLengthData> distanceHuffmanLengths = new ArrayList<>(); // TODO
+            int maxDistance = 0;
+            for (Integer element : compressedDistanceCodesSet) {
+                if (element > maxDistance)
+                    maxDistance = element;
+            }
+            List<HuffmanCodeLengthData> distanceHuffmanLengths =
+                    Arrays.asList(
+                            Arrays.copyOfRange(initializeHuffmanCodeLengthData(new ArrayList<Integer>(compressedDistanceCodesSet)),
+                                    0,
+                                    maxDistance + 1));
+
             generateDynamicsHuffmanLengthCodes(distanceHuffmanLengths);
             generateDynamicsDistanceCodes(distanceHuffmanLengths);
 
 
             groupHuffmanLengthCodesByBitsNumber();
             groupDistanceCodesByBitsNumber();
-
-//            generateStaticCodeTreesRepresentation();
         }
         else if (blockHeader.getCompressionType() == CompressionType.COMPRESSED_WITH_FIXED_HUFFMAN_CODES)
             generateStaticCodeTreesRepresentation();
@@ -141,23 +146,6 @@ public class CodeTreesRepresener {
                 huffmanCodeLengthData[indices[currentElement]] = new HuffmanCodeLengthData(indices[currentElement], 0);
             currentElement++;
         }
-
-//
-//        int maxElementNumber = 4;
-//        for (int bitsNumber = maxPower; bitsNumber <= maxPower+1; bitsNumber++) {
-//            for (int j = 0; j < maxElementNumber; j++) {
-//                if (currentElement >= codesCounter.length)
-//                    break;
-//                if (codesCounter[indices[currentElement]] != 0)
-//                    huffmanCodeLengthData[indices[currentElement]] = new HuffmanCodeLengthData(indices[currentElement], bitsNumber);
-//                else
-//                    huffmanCodeLengthData[indices[currentElement]] = new HuffmanCodeLengthData(indices[currentElement], 0);
-//                currentElement++;
-//            }
-//            if (currentElement >= codesCounter.length)
-//                break;
-//            maxElementNumber *= 2;
-//        }
         return huffmanCodeLengthData;
     }
 
@@ -572,6 +560,12 @@ public class CodeTreesRepresener {
                 if (biggestDistanceCodeLength < distanceHuffmanLength.bitsNumber)
                     biggestDistanceCodeLength = distanceHuffmanLength.bitsNumber;
                 distanceCodes.add(staticDistanceCodes.get(index));
+            } else {
+                DistanceCode distanceCode = new DistanceCode(0, 0, 0);
+                distanceCode.setBitsNumber(0);
+                distanceCodes.add(distanceCode);
+
+//                staticDistanceCodes.get(index).setBitsNumber(0);
             }
             index++;
         }

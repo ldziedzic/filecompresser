@@ -10,9 +10,7 @@ import com.dziedzic.filecompresser.zip.Entity.CompressionOutput;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -76,7 +74,6 @@ public class Deflater {
 
     private byte[] compressWithStaticsHuffmanCodes(byte[] content, FilePosition filePosition, byte[] output, boolean isLastBlock) {
         BitReader bitReader = new BitReader();
-
         BlockHeader blockHeader = new BlockHeader(isLastBlock, CompressionType.COMPRESSED_WITH_FIXED_HUFFMAN_CODES);
 
         List<LZ77Output> compressedContent = performLZ77compression(content);
@@ -87,11 +84,9 @@ public class Deflater {
 
     private byte[] compressWithDynamicsHuffmanCodes(byte[] content, FilePosition filePosition, byte[] output, boolean isLastBlock) {
         BitReader bitReader = new BitReader();
-
         BlockHeader blockHeader = new BlockHeader(isLastBlock, CompressionType.COMPRESSED_WITH_DYNAMIC_HUFFMAN_CODES);
 
         List<LZ77Output> compressedContent = performLZ77compression(content);
-
 
         return writeHuffmanCodes(content, filePosition, output, bitReader, isLastBlock, blockHeader, compressedContent);
     }
@@ -102,7 +97,6 @@ public class Deflater {
                 new CodeTreesRepresener(content);
         codeTreesRepresener.generateStaticDistanceCodes();
         codeTreesRepresener.generateStaticLengthCodes();
-
 
         Multimap<Integer, Integer> hashDictionary = HashMultimap.create();
 
@@ -133,14 +127,11 @@ public class Deflater {
                     continue;
             }
             if (i >= 2) {
-                int key = (int)content[i - 2] * 1000000 + (int)content[i - 1] * 10000 + (int)content[i];
+                int key = (int)content[i - 2] * 100000 + (int)content[i - 1] * 1000 + (int)content[i];
                 hashDictionary.put(key, i - 2);
             }
-
-
             compressedContent.add(new LZ77Output(((int) content[i]) & 0x0ff, 0, 0));
         }
-
         compressedContent.add(new LZ77Output(END_OF_BLOCK, 0, 0));
         return compressedContent;
     }
@@ -148,46 +139,52 @@ public class Deflater {
 
     private byte[] writeHuffmanCodes(byte[] content, FilePosition filePosition, byte[] output, BitReader bitReader,
                                      boolean isLastBlock, BlockHeader blockHeader, List<LZ77Output> compressedContent) {
-        List<Integer> compressedContentCodes = new ArrayList<>();
+        List<Integer> compressedLengthCodes = new ArrayList<>();
+        Set<Integer> compressedDistanceCodes = new HashSet<Integer>() {
+        };
         for (LZ77Output lz77Output : compressedContent) {
-            compressedContentCodes.add(lz77Output.getCode());
+            compressedLengthCodes.add(lz77Output.getCode());
+            if (lz77Output.isDistanceCode())
+                compressedDistanceCodes.add(lz77Output.getCode());
         }
 
         CodeTreesRepresener codeTreesRepresener =
                 new CodeTreesRepresener(content, blockHeader, filePosition.getOffset());
-        codeTreesRepresener.generateCodeTreesRepresentation(compressedContentCodes);
+        codeTreesRepresener.generateCodeTreesRepresentation(compressedLengthCodes, compressedDistanceCodes);
 
-        for (int i = 0; i < compressedContent.size(); i++) {
-            if (!compressedContent.get(i).isDistanceCode()) {
+        for (LZ77Output value : compressedContent) {
+            if (!value.isDistanceCode()) {
                 for (HuffmanCodeLengthData huffmanLengthCode : codeTreesRepresener.getHuffmanLengthCodes()) {
-                    if (huffmanLengthCode.getIndex() == compressedContentCodes.get(i)) {
-                        compressedContent.get(i).setBitsNumber(huffmanLengthCode.bitsNumber);
-                        compressedContent.get(i).setHuffmanCode(huffmanLengthCode.huffmanCode);
+                    if (huffmanLengthCode.getIndex() == value.getCode()) {
+                        value.setBitsNumber(huffmanLengthCode.bitsNumber);
+                        value.setHuffmanCode(huffmanLengthCode.huffmanCode);
                     }
                 }
+            } else {
+                List<DistanceCode> distanceCodes = codeTreesRepresener.getDistanceCodes();
+                value.setBitsNumber(distanceCodes.get(value.getCode()).getBitsNumber());
+                value.setHuffmanCode(distanceCodes.get(value.getCode()).getCode());
             }
-
         }
-
 
         output = writeBlockHeader(output, filePosition, isLastBlock, blockHeader);
         if (blockHeader.getCompressionType() == CompressionType.COMPRESSED_WITH_DYNAMIC_HUFFMAN_CODES) {
             output = writeHeaderForDynamicsHuffmanCodes(filePosition, output, bitReader, codeTreesRepresener);
 
         }
-        for (LZ77Output huffmanLengthCode: compressedContent) {
-            if (huffmanLengthCode.isDistanceCode()) {
-                output = bitReader.setBits(output, filePosition.getPosition(), huffmanLengthCode.getBitsNumber(),
-                        huffmanLengthCode.getCode());
+        for (LZ77Output lz77Output: compressedContent) {
+            if (lz77Output.isDistanceCode()) {
+                output = bitReader.setBits(output, filePosition.getPosition(), lz77Output.getBitsNumber(),
+                        lz77Output.getHuffmanCode());
             } else {
-                output = bitReader.setBits(output, filePosition.getPosition(), huffmanLengthCode.getBitsNumber(),
-                        huffmanLengthCode.getHuffmanCode());
+                output = bitReader.setBits(output, filePosition.getPosition(), lz77Output.getBitsNumber(),
+                        lz77Output.getHuffmanCode());
             }
-            filePosition.increasePosition(huffmanLengthCode.getBitsNumber());
-            if (huffmanLengthCode.getExtraBits() > 0) {
-                output = bitReader.setBitsLittleEndian(output, filePosition.getPosition(), huffmanLengthCode.getExtraBits(),
-                        huffmanLengthCode.getAdditionalValue());
-                filePosition.increasePosition(huffmanLengthCode.getExtraBits());
+            filePosition.increasePosition(lz77Output.getBitsNumber());
+            if (lz77Output.getExtraBits() > 0) {
+                output = bitReader.setBitsLittleEndian(output, filePosition.getPosition(), lz77Output.getExtraBits(),
+                        lz77Output.getAdditionalValue());
+                filePosition.increasePosition(lz77Output.getExtraBits());
             }
         }
         int endPosition = (int) (filePosition.getPosition() / BITS_IN_BYTE);
@@ -202,12 +199,12 @@ public class Deflater {
         for (HuffmanCodeLengthData code : codeTreesRepresener.getHuffmanLengthCodes()) {
             headerHuffmanLengthCodes.add(code.bitsNumber);
         }
-        int distanceCodesNumber = 1;
-        for (int i = 0; i < distanceCodesNumber; i++) { // TODO : only temporary - it should be replaced with generating distance codes
-            headerHuffmanDistanceCodes.add(i);
+        int distanceCodesNumber = codeTreesRepresener.getDistanceCodes().size();
+        for (DistanceCode distanceCode : codeTreesRepresener.getDistanceCodes()) { // TODO : only temporary - it should be replaced with generating distance codes
+            headerHuffmanDistanceCodes.add(distanceCode.getBitsNumber());
         }
 
-        int literalLengthAlphabetLength = Math.max(getNonZeroElementsNumber(headerHuffmanLengthCodes), 257);
+        int literalLengthAlphabetLength = Math.max(getNonZeroElementsNumber(headerHuffmanLengthCodes), 257) + 1;
 
         headerHuffmanLengthCodes = Stream.concat(headerHuffmanLengthCodes.stream(), headerHuffmanDistanceCodes.stream())
                 .collect(Collectors.toList());
@@ -220,23 +217,36 @@ public class Deflater {
                         Arrays.copyOfRange(
                                 codeTreesRepresener.initializeHuffmanCodeLengthData(headerHuffmanLengthCodes), 0, 19));
 
-//        List<HuffmanCodeLengthData> compressedDistanceCodes =
-//                Arrays.asList(
-//                        Arrays.copyOfRange(
-//                                codeTreesRepresener.initializeHuffmanCodeLengthData(headerHuffmanDistanceCodes), 0, 19));
-
         int codeAlphabetLength = 18;
+        output = copyAlphabetsLengthsToOutput(filePosition, output, codeTreesRepresener, distanceCodesNumber, literalLengthAlphabetLength, codeAlphabetLength);
+
+        output = codeTreesRepresener.writeHeaderHuffmanCodeAlphabet(compressedHeaderHuffmanCodes, output, filePosition, codeAlphabetLength);
+        codeTreesRepresener.generateDynamicsHuffmanLengthCodes(compressedHeaderHuffmanCodes);
+
+        List<HuffmanCodeLengthData> huffmanCodeLengthData = codeTreesRepresener.getHuffmanLengthCodes();
+        output = copyLiteralLengthAlphabetToOutput(filePosition, output, bitReader, literalLengthAlphabetLength, compressedHeaderHuffmanCodes, huffmanCodeLengthData);
+        List<DistanceCode> distanceCodes = codeTreesRepresener.getDistanceCodes();
+        for (int i = 0; i < distanceCodesNumber; i++) {
+            DistanceCode code = distanceCodes.get(i);
+            output = bitReader.setBits(output, filePosition.getPosition(), compressedHeaderHuffmanCodes.get(code.getBitsNumber()).bitsNumber,
+                    compressedHeaderHuffmanCodes.get(code.getBitsNumber()).huffmanCode);
+            filePosition.increasePosition(compressedHeaderHuffmanCodes.get(code.getBitsNumber()).bitsNumber);
+        }
+
+        return output;
+    }
+
+    private byte[] copyAlphabetsLengthsToOutput(FilePosition filePosition, byte[] output, CodeTreesRepresener codeTreesRepresener, int distanceCodesNumber, int literalLengthAlphabetLength, int codeAlphabetLength) {
         output = codeTreesRepresener.setLiteralLengthAlphabetLength(literalLengthAlphabetLength, output, filePosition.getPosition());
         filePosition.increasePosition(5);
         output = codeTreesRepresener.setDistanceAlphabetLength(distanceCodesNumber, output, filePosition.getPosition());
         filePosition.increasePosition(5);
         output = codeTreesRepresener.setCodeAlphabetLength(codeAlphabetLength, output, filePosition.getPosition());
         filePosition.increasePosition(4);
+        return output;
+    }
 
-        output = codeTreesRepresener.writeHeaderHuffmanCodeAlphabet(compressedHeaderHuffmanCodes, output, filePosition, codeAlphabetLength);
-        codeTreesRepresener.generateDynamicsHuffmanLengthCodes(compressedHeaderHuffmanCodes);
-
-        List<HuffmanCodeLengthData> huffmanCodeLengthData = codeTreesRepresener.getHuffmanLengthCodes();
+    private byte[] copyLiteralLengthAlphabetToOutput(FilePosition filePosition, byte[] output, BitReader bitReader, int literalLengthAlphabetLength, List<HuffmanCodeLengthData> compressedHeaderHuffmanCodes, List<HuffmanCodeLengthData> huffmanCodeLengthData) {
         for (int i = 0; i < literalLengthAlphabetLength; i++) {
             HuffmanCodeLengthData code = huffmanCodeLengthData.get(i);
             output = bitReader.setBits(output, filePosition.getPosition(), compressedHeaderHuffmanCodes.get(code.bitsNumber).bitsNumber,
@@ -268,17 +278,6 @@ public class Deflater {
                 }
             }
         }
-//        for (int i = 0; i < distanceCodesNumber; i++) {
-//            HuffmanCodeLengthData code = huffmanCodeLengthData.get(i);
-//            output = bitReader.setBits(output, filePosition.getPosition(), compressedHeaderHuffmanCodes.get(code.bitsNumber).bitsNumber,
-//                    compressedHeaderHuffmanCodes.get(code.bitsNumber).huffmanCode);
-//            filePosition.increasePosition(compressedHeaderHuffmanCodes.get(code.bitsNumber).bitsNumber);
-//        }
-
-        output = bitReader.setBits(output, filePosition.getPosition(), compressedHeaderHuffmanCodes.get(0).bitsNumber,
-                compressedHeaderHuffmanCodes.get(0).huffmanCode);
-        filePosition.increasePosition(compressedHeaderHuffmanCodes.get(0).bitsNumber); // TODO change to method which generates distance codes
-
         return output;
     }
 
@@ -349,7 +348,6 @@ public class Deflater {
                 filePosition.increaseOffset(bitsNumber);
                 if (huffmanLengthCode.getIndex() < END_OF_BLOCK) {
                     copyByteToOutputStream(output, filePosition, huffmanLengthCode);
-                    System.out.print((char)huffmanLengthCode.index);
                 }
                 else if (huffmanLengthCode.getIndex() == END_OF_BLOCK)
                     endOfBlock = true;
@@ -362,7 +360,6 @@ public class Deflater {
                 continue;
             }
             bitsNumber--;
-//            System.out.print(100 * filePosition.getPosition() / output.length + " %\r");
         }
     }
     private void readBlockWithoutCompression(byte[] content, BitReader bitReader,
@@ -384,8 +381,6 @@ public class Deflater {
             filePosition.increasePosition(1);
             filePosition.increaseOffset(BITS_IN_BYTE);
         }
-
-//        System.out.print(100 * filePosition.getPosition() / output.length + " %\r");
     }
 
     private void copyByteToOutputStream(byte[] output, FilePosition filePosition, HuffmanCodeLengthData huffmanLengthCode) {
