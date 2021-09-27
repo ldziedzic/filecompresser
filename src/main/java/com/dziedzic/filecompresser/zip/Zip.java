@@ -43,59 +43,36 @@ public class Zip {
         int fileIndex = 0;
         int outputSize = 0;
         FileData[] fileData = new FileData[paths.size()];
+        Path[] tempFiles = new Path[paths.size()];
 
-        File fileToRemove = new File(path + ".zip.tmp");
-        fileToRemove.delete();
-        fileToRemove = new File(path + "2.zip");
-        fileToRemove.delete();
-
-
+        ArrayList<Thread> threads = new ArrayList<>();
         for (Path filePath: paths) {
 
-            fileData[fileIndex] = getFileAttributes(dirPath, filePath);
-
             byte[] content = readFile(filePath.toString());
-            CRC32 crc32 = generateCRC32Checksum(content);
-            fileData[fileIndex].setCrc32Checksum((int) crc32.getValue());
+            setFileInfo(dirPath, fileIndex, fileData, filePath, content);
 
-            int maxBytesToProcess = 1 * 1024 * 1024; // 10 MB
-            int blocksNumber = content.length / maxBytesToProcess;
-            if (content.length % maxBytesToProcess != 0)
-                blocksNumber++;
-            int compressedSize = 0;
+            tempFiles[fileIndex] = createTemporaryFile(filePath);
+            ZipCompresser zipCompresser = new ZipCompresser(fileData[fileIndex], huffmanCodesMode, maxBlockSize, tempFiles[fileIndex], content);
+            threads.add(zipCompresser.start());
+            fileIndex++;
+        }
 
-            Path temp = null;
+        for (Thread thread : threads) {
             try {
-                temp = Files.createTempFile(filePath.getFileName().toString(), ".tmp");
-            }catch (IOException e) {
-
+                if (thread != null) {
+                    thread.join();
+                    System.out.println("Successfully compressed " + thread.getName());
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
+        }
 
-            byte additionalByte = 0;
-            int additionalBits = 0;
+        for (fileIndex = 0; fileIndex < paths.size(); fileIndex++) {
+            Path filePath = tempFiles[fileIndex];
+            int compressedSize;
 
-            int processedBytes = 0;
-            for (int i = 0; i < blocksNumber; i++) {
-                int blockSize = Math.min(maxBytesToProcess, content.length - processedBytes);
-                boolean isLastDataSet = false;
-                if (content.length - processedBytes - blockSize == 0)
-                    isLastDataSet = true;
-                Deflater deflater = new Deflater();
-                CompressionOutput compressionOutput = deflater.compress(Arrays.copyOfRange(content, i * maxBytesToProcess, i * maxBytesToProcess + blockSize),
-                        additionalByte, additionalBits, isLastDataSet, huffmanCodesMode, maxBlockSize);
-
-                additionalBits = compressionOutput.getAdditionalBits();
-                additionalByte = compressionOutput.getContent()[compressionOutput.getContent().length-1];
-                int endPosition = compressionOutput.getContent().length;
-                if (additionalBits > 0 && !isLastDataSet)
-                    endPosition--;
-
-                writeFile(Paths.get(String.valueOf(temp)).toString(), Arrays.copyOfRange(compressionOutput.getContent(), 0, endPosition));
-
-                processedBytes += blockSize;
-            }
-
-            byte[] compressedContent = readFile(temp.toString());
+            byte[] compressedContent = readFile(filePath.toString());
             compressedSize = compressedContent.length;
             fileData[fileIndex].setCompressedSize(compressedSize);
 
@@ -103,21 +80,43 @@ public class Zip {
             writeFile(path + ".zip.tmp", header);
 
             writeFile(path + ".zip.tmp", compressedContent);
-            fileToRemove = new File(temp.toString());
+            File fileToRemove = new File(filePath.toString());
             fileToRemove.delete();
 
             output[fileIndex] = new byte[header.length + compressedSize];
             System.arraycopy(header, 0, output[fileIndex], 0, header.length);
             System.arraycopy(compressedContent, 0, output[fileIndex], header.length, compressedSize);
-            System.out.println("Successfully compressed " + fileData[fileIndex].getFilename());
+
             fileData[fileIndex].setOffset(outputSize);
             outputSize += header.length + compressedSize;
-            fileIndex++;
         }
 
         byte[] outputFile = addCentralDirectoryHeaders(paths, output, outputSize, fileData);
 
         writeFile(path + "2.zip", outputFile);
+        for (Path filePath: tempFiles) {
+            File fileToRemove = new File(String.valueOf(filePath));
+            fileToRemove.delete();
+        }
+        File fileToRemove = new File(path + ".zip.tmp");
+        fileToRemove.delete();
+    }
+
+
+    private void setFileInfo(Path dirPath, int fileIndex, FileData[] fileData, Path filePath, byte[] content) {
+        fileData[fileIndex] = getFileAttributes(dirPath, filePath);
+        CRC32 crc32 = generateCRC32Checksum(content);
+        fileData[fileIndex].setCrc32Checksum((int) crc32.getValue());
+    }
+
+    private Path createTemporaryFile(Path filePath) {
+        Path temp = null;
+        try {
+            temp = Files.createTempFile(filePath.getFileName().toString(), ".tmp");
+        }catch (IOException e) {
+
+        }
+        return temp;
     }
 
     private byte[] addCentralDirectoryHeaders(List<Path> paths, byte[][] output, int outputSize, FileData[] fileData) {
